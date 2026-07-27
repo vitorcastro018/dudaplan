@@ -29,6 +29,16 @@ const buildPlaceholders = {
   OPENAI_API_KEY: "sk-placeholder",
 };
 
+// A platform that forwards `--build-arg VAR` for a variable with no build-time
+// value hands the build an empty string rather than leaving it unset (Coolify
+// does this for every variable not explicitly marked as a build variable). An
+// empty string would override the placeholders above and fail validation, so
+// drop empties before merging. Only build phase gets this treatment: at runtime
+// an empty required variable must still be a hard error, never a placeholder.
+function withoutEmptyValues(source: NodeJS.ProcessEnv): Record<string, string | undefined> {
+  return Object.fromEntries(Object.entries(source).filter(([, value]) => value !== ""));
+}
+
 export const env = envSchema.parse(
-  isBuildPhase ? { ...buildPlaceholders, ...process.env } : process.env,
+  isBuildPhase ? { ...buildPlaceholders, ...withoutEmptyValues(process.env) } : process.env,
 );
