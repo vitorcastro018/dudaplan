@@ -41,6 +41,15 @@ export default async function MeetingDetailPage({
           status: meeting.status,
           audioPath: meeting.audioPath,
           durationSeconds: meeting.durationSeconds,
+          errorMessage: meeting.errorMessage,
+          summaryMarkdown: meeting.summaryMarkdown,
+          problems: meeting.problems,
+          actionPlan: meeting.actionPlan,
+          risks: meeting.risks,
+          decisions: meeting.decisions,
+          flowchartMermaid: meeting.flowchartMermaid,
+          flowchartTitle: meeting.flowchartTitle,
+          transcript: meeting.transcript,
         }}
       />
     </div>
