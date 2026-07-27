@@ -5,6 +5,9 @@ import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
 import { env } from "@/lib/env";
 
+// UPLOAD_DIR is a runtime env var, so Next's file tracer can't resolve this
+// statically at build time and conservatively bundles more of the project
+// into the standalone output — harmless, just a slightly larger image.
 const UPLOAD_ROOT = path.resolve(process.cwd(), env.UPLOAD_DIR);
 
 function meetingDir(meetingId: string) {
