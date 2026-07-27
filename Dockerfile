@@ -50,6 +50,15 @@ COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 RUN rm -rf ./node_modules
 COPY --from=deps-prod /app/node_modules ./node_modules
 
+# Bake the Prisma schema engine binary into the image. If it's missing (or
+# unusable) when `migrate deploy` runs at startup, the CLI tries to download it
+# into node_modules — which fails as the non-root app user with "Can't write to
+# /app/node_modules/@prisma/engines" and leaves the container restart-looping.
+# Running `prisma version` here resolves and fetches it while we still have root
+# and build-time network. The chown covers the engine being refreshed later.
+RUN node node_modules/prisma/build/index.js version > /dev/null \
+    && chown -R nextjs:nodejs /app/node_modules/@prisma/engines
+
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
     && mkdir -p /app/data/uploads \
