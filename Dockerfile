@@ -29,7 +29,7 @@ FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
-    PORT=3000 \
+    PORT=6555 \
     HOSTNAME=0.0.0.0 \
     UPLOAD_DIR=/app/data/uploads
 
@@ -56,6 +56,6 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
     && chown -R nextjs:nodejs /app/data
 
 USER nextjs
-EXPOSE 3000
+EXPOSE 6555
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "server.js"]

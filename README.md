@@ -22,7 +22,7 @@ npm run db:seed        # opcional: dados de exemplo
 npm run dev
 ```
 
-Acesse `http://localhost:3000`, a senha de acesso é a definida em `APP_PASSWORD`.
+Acesse `http://localhost:6555`, a senha de acesso é a definida em `APP_PASSWORD`.
 
 > A gravação de áudio (`getUserMedia`) só funciona em `localhost` ou HTTPS — em produção, o domínio precisa ter certificado TLS.
 
