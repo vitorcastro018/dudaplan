@@ -19,8 +19,24 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    env_file:
-      - .env
+    # Values come from interpolation, not from an `env_file:` pointing at a
+    # literal .env. Coolify (and other PaaS) inject managed variables into the
+    # compose interpolation context but do not necessarily write a .env file
+    # into the project directory, so `env_file: .env` silently yielded a
+    # container with no configuration at all. Locally, `docker compose` reads
+    # ./.env for interpolation automatically, so this works both places.
+    environment:
+      NODE_ENV: production
+      PORT: 6555
+      APP_TIMEZONE: ${APP_TIMEZONE:-America/Sao_Paulo}
+      APP_PASSWORD: ${APP_PASSWORD}
+      SESSION_SECRET: ${SESSION_SECRET}
+      DATABASE_URL: ${DATABASE_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_TRANSCRIBE_MODEL: ${OPENAI_TRANSCRIBE_MODEL:-gpt-4o-transcribe}
+      OPENAI_ANALYSIS_MODEL: ${OPENAI_ANALYSIS_MODEL:-gpt-4o-mini}
+      UPLOAD_DIR: ${UPLOAD_DIR:-/app/data/uploads}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-200}
     depends_on:
       db:
         condition: service_healthy
