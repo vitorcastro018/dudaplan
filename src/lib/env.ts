@@ -29,16 +29,22 @@ const buildPlaceholders = {
   OPENAI_API_KEY: "sk-placeholder",
 };
 
-// A platform that forwards `--build-arg VAR` for a variable with no build-time
-// value hands the build an empty string rather than leaving it unset (Coolify
-// does this for every variable not explicitly marked as a build variable). An
-// empty string would override the placeholders above and fail validation, so
-// drop empties before merging. Only build phase gets this treatment: at runtime
-// an empty required variable must still be a hard error, never a placeholder.
+// A deployment platform hands over an empty string for a variable that is
+// registered but has no value, rather than leaving it unset — Coolify does
+// this both for build args and for the container's own environment. Zod's
+// `.default()` only fills in `undefined`, so an empty string sails past it and
+// reaches the app as "": an empty APP_TIMEZONE then makes Intl.DateTimeFormat
+// throw "Invalid time zone specified", and an empty MAX_UPLOAD_MB coerces to 0
+// and rejects every upload. Normalising empties to absent lets the defaults do
+// their job. Required variables are unaffected in substance — an empty one is
+// still a hard error, just reported as missing rather than as too short — and
+// the placeholders stay confined to the build phase.
 function withoutEmptyValues(source: NodeJS.ProcessEnv): Record<string, string | undefined> {
   return Object.fromEntries(Object.entries(source).filter(([, value]) => value !== ""));
 }
 
 export const env = envSchema.parse(
-  isBuildPhase ? { ...buildPlaceholders, ...withoutEmptyValues(process.env) } : process.env,
+  isBuildPhase
+    ? { ...buildPlaceholders, ...withoutEmptyValues(process.env) }
+    : withoutEmptyValues(process.env),
 );
