@@ -46,3 +46,5 @@ next-env.d.ts
 
 # local uploads
 /data
+
+/src/generated/prisma
