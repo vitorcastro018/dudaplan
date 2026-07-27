@@ -53,6 +53,26 @@ Acesse `http://localhost:6555`, a senha de acesso é a definida em `APP_PASSWORD
    - Health check em `GET /api/health`.
 4. O build baixa fontes do Google Fonts, então a etapa de build precisa de acesso à rede.
 
+### Se aparecer "Authentication failed ... credentials for `dudaplan` are not valid"
+
+O Postgres grava a senha **apenas na primeira inicialização**, enquanto o diretório de dados ainda está vazio. Depois disso, alterar `POSTGRES_PASSWORD` não muda nada no banco já criado — ele continua com a senha original, e o app passa a falhar na autenticação.
+
+Se o volume foi criado com uma senha diferente da que está hoje no `DATABASE_URL`, há dois caminhos:
+
+```bash
+# Sem dados que valha a pena preservar: recria o volume do zero
+docker compose down
+docker volume ls | grep pgdata
+docker volume rm <nome-do-volume-pgdata>
+docker compose up -d --build
+
+# Com dados em produção: muda a senha dentro do banco existente
+docker compose exec db psql -U dudaplan -d dudaplan \
+  -c "ALTER USER dudaplan WITH PASSWORD 'nova-senha';"
+```
+
+Em qualquer um dos casos, `POSTGRES_PASSWORD` e a senha embutida no `DATABASE_URL` precisam ser idênticas.
+
 ### Backup
 
 Os dados vivem em dois lugares: o Postgres (projetos, tarefas, notas, transcrições, atas) e o volume `/app/data` (arquivos de áudio das reuniões). Um backup completo precisa dos dois:

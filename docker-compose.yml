@@ -4,7 +4,12 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-dudaplan}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dudaplan}
+      # Deliberately has no default. Postgres only applies this on the very
+      # first start, while the data directory is still empty — so a default
+      # here silently bakes a throwaway password into the volume, and every
+      # later change to it appears to do nothing while the app fails with
+      # "authentication failed". Failing to start is the clearer outcome.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD (deve ser igual a senha usada em DATABASE_URL)}
       POSTGRES_DB: ${POSTGRES_DB:-dudaplan}
     volumes:
       - pgdata:/var/lib/postgresql/data
