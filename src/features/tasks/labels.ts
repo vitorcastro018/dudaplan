@@ -1,20 +1,29 @@
-export const STATUS_LABELS: Record<string, string> = {
-  TODO: "A fazer",
-  DOING: "Em andamento",
-  BLOCKED: "Bloqueado",
-  DONE: "Concluído",
+import type { TaskStatus, TaskPriority } from "@/lib/supabase/types";
+
+export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  backlog: "Backlog",
+  todo: "A fazer",
+  in_progress: "Em andamento",
+  waiting: "Aguardando",
+  done: "Concluída",
+  cancelled: "Cancelada",
 };
 
-export const STATUS_ORDER = ["TODO", "DOING", "BLOCKED", "DONE"];
-
-export const PRIORITY_LABELS: Record<string, string> = {
-  LOW: "Baixa",
-  MEDIUM: "Média",
-  HIGH: "Alta",
+export const TASK_STATUS_TONE: Record<
+  TaskStatus,
+  "neutral" | "accent" | "pine" | "ochre" | "plum" | "danger"
+> = {
+  backlog: "neutral",
+  todo: "neutral",
+  in_progress: "accent",
+  waiting: "ochre",
+  done: "pine",
+  cancelled: "danger",
 };
 
-export const PRIORITY_TONE: Record<string, "neutral" | "ochre" | "danger"> = {
-  LOW: "neutral",
-  MEDIUM: "ochre",
-  HIGH: "danger",
+export const TASK_PRIORITY_LABEL: Record<TaskPriority, string> = {
+  low: "Baixa",
+  medium: "Média",
+  high: "Alta",
+  urgent: "Urgente",
 };

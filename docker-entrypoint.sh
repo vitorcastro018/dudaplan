@@ -1,26 +1,30 @@
 #!/bin/sh
 set -e
 
-# Fail loudly and specifically when configuration is missing. Without this the
-# Prisma config falls back to a placeholder DATABASE_URL (needed so `prisma
-# generate` can run at build time, where no secrets exist) and the container
-# ends up in a restart loop reporting a confusing "can't reach localhost:5432"
-# instead of the real problem, which is an unset variable.
+# Falha alto e específico quando falta configuração. Sem isto o app sobe, a
+# validação de env estoura no primeiro request e o container entra em loop de
+# restart reportando um erro de Zod no meio de um stack trace de render — em vez
+# de dizer, na primeira linha do log, qual variável está faltando.
+#
+# Não há mais migration para rodar aqui: o schema vive no Supabase e é aplicado
+# por fora, com `supabase db push` ou pelo SQL Editor. Um redeploy do app não
+# mexe mais no banco, que era de onde vinha boa parte do risco de subir.
 missing=""
-for var in DATABASE_URL APP_PASSWORD SESSION_SECRET OPENAI_API_KEY; do
+for var in SUPABASE_URL OPENAI_API_KEY; do
   eval "value=\$$var"
   if [ -z "$value" ]; then
     missing="$missing $var"
   fi
 done
 
-if [ -n "$missing" ]; then
-  echo "ERROR: missing required environment variable(s):$missing" >&2
-  echo "Set them in your deployment's environment settings (see .env.example)." >&2
-  exit 1
+if [ -z "$SUPABASE_PUBLISHABLE_KEY" ] && [ -z "$SUPABASE_ANON_KEY" ]; then
+  missing="$missing SUPABASE_PUBLISHABLE_KEY"
 fi
 
-echo "Running database migrations..."
-node node_modules/prisma/build/index.js migrate deploy
+if [ -n "$missing" ]; then
+  echo "ERRO: falta(m) variável(is) de ambiente:$missing" >&2
+  echo "Configure no ambiente do deploy (veja .env.example)." >&2
+  exit 1
+fi
 
 exec "$@"

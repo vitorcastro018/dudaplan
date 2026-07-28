@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CircleCheck, FolderKanban, LogOut } from "lucide-react";
+import { CalendarCheck, FolderKanban, LogOut, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { logout } from "@/app/login/actions";
 
 export interface SidebarProject {
   id: string;
   name: string;
-  slug: string;
 }
 
 export function Sidebar({ projects }: { projects: SidebarProject[] }) {
@@ -30,10 +30,16 @@ export function Sidebar({ projects }: { projects: SidebarProject[] }) {
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3">
         <NavLink
-          href="/checks"
-          icon={CircleCheck}
-          label="Checks Diários"
-          active={pathname.startsWith("/checks")}
+          href="/hoje"
+          icon={CalendarCheck}
+          label="Hoje"
+          active={pathname.startsWith("/hoje")}
+        />
+        <NavLink
+          href="/rotinas"
+          icon={Repeat}
+          label="Rotinas"
+          active={pathname.startsWith("/rotinas")}
         />
         <NavLink
           href="/projetos"
@@ -47,10 +53,10 @@ export function Sidebar({ projects }: { projects: SidebarProject[] }) {
             {projects.map((project) => (
               <Link
                 key={project.id}
-                href={`/projetos/${project.slug}`}
+                href={`/projetos/${project.id}`}
                 className={cn(
                   "text-ink-muted hover:bg-surface hover:text-ink truncate rounded-[var(--radius-sm)] px-3 py-1.5 text-sm",
-                  pathname.startsWith(`/projetos/${project.slug}`) && "bg-surface text-ink",
+                  pathname === `/projetos/${project.id}` && "bg-surface text-ink",
                 )}
               >
                 {project.name}
@@ -62,7 +68,7 @@ export function Sidebar({ projects }: { projects: SidebarProject[] }) {
 
       <div className="border-line flex items-center justify-between border-t px-5 py-4">
         <span className="text-ink-muted font-mono text-xs tabular-nums">{today}</span>
-        <form action="/api/auth/logout" method="post">
+        <form action={logout}>
           <button
             type="submit"
             className="text-ink-muted hover:text-ink flex items-center gap-1.5 text-xs font-medium"

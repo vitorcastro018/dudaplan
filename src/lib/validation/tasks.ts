@@ -1,30 +1,50 @@
 import { z } from "zod";
+import { isValidDateKey } from "@/lib/date";
 
-export const taskStatusSchema = z.enum(["TODO", "DOING", "BLOCKED", "DONE"]);
-export const taskPrioritySchema = z.enum(["LOW", "MEDIUM", "HIGH"]);
-
-const titleField = z.string().trim().min(1).max(200);
-const descriptionField = z.string().trim().max(4000).optional().nullable();
-const dueDateField = z
+const dateKey = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .optional()
-  .nullable();
+  .refine(isValidDateKey, "Data inválida (esperado AAAA-MM-DD).")
+  .nullable()
+  .optional();
+
+export const taskStatusSchema = z.enum([
+  "backlog",
+  "todo",
+  "in_progress",
+  "waiting",
+  "done",
+  "cancelled",
+]);
+
+export const taskPrioritySchema = z.enum(["low", "medium", "high", "urgent"]);
+export const taskEnergySchema = z.enum(["low", "medium", "high"]);
 
 export const createTaskSchema = z.object({
-  title: titleField,
-  description: descriptionField,
-  status: taskStatusSchema.default("TODO"),
-  priority: taskPrioritySchema.default("MEDIUM"),
-  dueDate: dueDateField,
+  title: z.string().trim().min(1, "Dê um título à tarefa.").max(300),
+  projectId: z.string().uuid().nullable().optional(),
+  status: taskStatusSchema.default("todo"),
+  priority: taskPrioritySchema.default("medium"),
+  energy: taskEnergySchema.nullable().optional(),
+  scheduledDate: dateKey,
+  dueDate: dateKey,
+  estimateMinutes: z.coerce.number().int().positive().nullable().optional(),
+  blockedReason: z.string().trim().max(500).nullable().optional(),
 });
 
-// Built independently from createTaskSchema: see note in validation/daily-checks.ts
-// about why .partial() on a schema with .default() fields is unsafe for PATCH.
+// Reconstruído do zero, e não `createTaskSchema.partial()`: o `.partial()`
+// preserva os `.default()`, então um update que não menciona `priority`
+// receberia "medium" e sobrescreveria em silêncio o valor que já estava lá.
 export const updateTaskSchema = z.object({
-  title: titleField.optional(),
-  description: descriptionField,
+  title: z.string().trim().min(1).max(300).optional(),
+  projectId: z.string().uuid().nullable().optional(),
   status: taskStatusSchema.optional(),
   priority: taskPrioritySchema.optional(),
-  dueDate: dueDateField,
+  energy: taskEnergySchema.nullable().optional(),
+  scheduledDate: dateKey,
+  dueDate: dateKey,
+  estimateMinutes: z.coerce.number().int().positive().nullable().optional(),
+  blockedReason: z.string().trim().max(500).nullable().optional(),
 });
+
+export type CreateTaskInput = z.infer<typeof createTaskSchema>;
+export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;

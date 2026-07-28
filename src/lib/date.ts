@@ -43,6 +43,59 @@ export function dateKeyToDate(dateKey: string): Date {
   return date;
 }
 
+// Deslocamento do fuso, em ms, no instante dado. Obtido formatando o instante
+// no fuso e comparando com o mesmo relógio lido como UTC — não dá para assumir
+// um valor fixo, porque o deslocamento muda com horário de verão.
+function offsetMs(date: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(date);
+
+  const value = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? "0");
+
+  const asUtc = Date.UTC(
+    value("year"),
+    value("month") - 1,
+    value("day"),
+    // Um relógio de 24h formata a meia-noite como "24" em algumas plataformas.
+    value("hour") % 24,
+    value("minute"),
+    value("second"),
+  );
+
+  return asUtc - date.getTime();
+}
+
+/**
+ * Intervalo `[início, fim)` do dia local, em ISO UTC.
+ *
+ * Necessário porque `completed_at` é `timestamptz`. Comparar com uma string sem
+ * fuso ("2026-07-28T00:00:00") faz o Postgres interpretá-la no fuso do servidor,
+ * que no Supabase é UTC — em São Paulo isso desloca o corte em três horas e
+ * tarefas concluídas no fim da noite caem no dia seguinte.
+ */
+export function dayRangeUtc(dateKey: string): { start: string; end: string } {
+  const localMidnightAsUtc = dateKeyToDate(dateKey).getTime();
+
+  // Duas passadas: a primeira usa o deslocamento no instante errado, a segunda
+  // corrige usando o deslocamento no instante já aproximado.
+  let start = new Date(localMidnightAsUtc - offsetMs(new Date(localMidnightAsUtc), TIME_ZONE));
+  start = new Date(localMidnightAsUtc - offsetMs(start, TIME_ZONE));
+
+  const nextMidnightAsUtc = dateKeyToDate(shiftDateKey(dateKey, 1)).getTime();
+  let end = new Date(nextMidnightAsUtc - offsetMs(new Date(nextMidnightAsUtc), TIME_ZONE));
+  end = new Date(nextMidnightAsUtc - offsetMs(end, TIME_ZONE));
+
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
 export function isValidDateKey(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }

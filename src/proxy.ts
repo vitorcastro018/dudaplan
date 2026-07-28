@@ -1,18 +1,19 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
+import { updateSession } from "@/lib/supabase/middleware";
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|mark.svg|login|api/auth/login|api/health).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|mark.svg|login|api/health).*)"],
 };
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const token = request.cookies.get(SESSION_COOKIE)?.value;
-  const session = await verifySession(token);
 
-  if (session) return NextResponse.next();
+  // Roda sempre, inclusive para quem já está logado: é aqui que o token
+  // renovado volta para o cookie. Sair cedo quando a sessão parece válida
+  // deixaria o refresh nunca ser gravado, e a sessão morreria sozinha.
+  const { response, user } = await updateSession(request);
+
+  if (user) return response;
 
   if (pathname.startsWith("/api")) {
     return NextResponse.json(

@@ -1,52 +1,31 @@
 services:
-  db:
-    image: postgres:17-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-dudaplan}
-      # Deliberately has no default. Postgres only applies this on the very
-      # first start, while the data directory is still empty — so a default
-      # here silently bakes a throwaway password into the volume, and every
-      # later change to it appears to do nothing while the app fails with
-      # "authentication failed". Failing to start is the clearer outcome.
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD (deve ser igual a senha usada em DATABASE_URL)}
-      POSTGRES_DB: ${POSTGRES_DB:-dudaplan}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dudaplan} -d ${POSTGRES_DB:-dudaplan}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
   app:
     build:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    # Values come from interpolation, not from an `env_file:` pointing at a
-    # literal .env. Coolify (and other PaaS) inject managed variables into the
-    # compose interpolation context but do not necessarily write a .env file
-    # into the project directory, so `env_file: .env` silently yielded a
-    # container with no configuration at all. Locally, `docker compose` reads
-    # ./.env for interpolation automatically, so this works both places.
+    # Os valores vêm de interpolação, não de um `env_file:` apontando para um
+    # .env literal. O Coolify (e outras PaaS) injetam as variáveis gerenciadas
+    # no contexto de interpolação do compose, mas não necessariamente escrevem
+    # um .env no diretório do projeto — com `env_file: .env` o container subia
+    # sem configuração nenhuma. Localmente o `docker compose` lê ./.env para
+    # interpolação sozinho, então isto funciona nos dois lugares.
     environment:
       NODE_ENV: production
       PORT: 6555
       APP_TIMEZONE: ${APP_TIMEZONE:-America/Sao_Paulo}
-      APP_PASSWORD: ${APP_PASSWORD}
-      SESSION_SECRET: ${SESSION_SECRET}
-      DATABASE_URL: ${DATABASE_URL}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OPENAI_TRANSCRIBE_MODEL: ${OPENAI_TRANSCRIBE_MODEL:-gpt-4o-transcribe}
       OPENAI_ANALYSIS_MODEL: ${OPENAI_ANALYSIS_MODEL:-gpt-4o-mini}
       UPLOAD_DIR: ${UPLOAD_DIR:-/app/data/uploads}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-200}
-    depends_on:
-      db:
-        condition: service_healthy
     ports:
       - "6555:6555"
+    # O banco agora é o Supabase, então não há serviço `db` nem volume de dados
+    # aqui. Este volume guarda só os áudios de reunião, que ainda ficam em disco
+    # — sem ele, cada redeploy apaga as gravações.
     volumes:
       - uploads:/app/data
     stop_grace_period: 30s
@@ -64,5 +43,4 @@ services:
       start_period: 40s
 
 volumes:
-  pgdata: {}
   uploads: {}

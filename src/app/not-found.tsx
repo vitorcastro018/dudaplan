@@ -12,7 +12,7 @@ export default function NotFound() {
       <p className="text-ink-muted max-w-sm text-sm">
         O que você procura não existe ou foi removido.
       </p>
-      <LinkButton href="/checks">Voltar para o início</LinkButton>
+      <LinkButton href="/hoje">Voltar para o início</LinkButton>
     </div>
   );
 }

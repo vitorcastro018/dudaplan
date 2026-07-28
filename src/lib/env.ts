@@ -1,44 +1,72 @@
 import { z } from "zod";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
 
-const envSchema = z.object({
-  DATABASE_URL: z.string().min(1),
-  APP_TIMEZONE: z.string().default("America/Sao_Paulo"),
-  APP_PASSWORD: z.string().min(1),
-  SESSION_SECRET: z.string().min(16),
-  OPENAI_API_KEY: z.string().min(1),
-  OPENAI_TRANSCRIBE_MODEL: z.string().default("gpt-4o-transcribe"),
-  OPENAI_ANALYSIS_MODEL: z.string().default("gpt-4o-mini"),
-  UPLOAD_DIR: z.string().default("./data/uploads"),
-  MAX_UPLOAD_MB: z.coerce.number().default(200),
-});
+// Por que nenhuma variável do Supabase leva o prefixo NEXT_PUBLIC_:
+//
+// O Next substitui `process.env.NEXT_PUBLIC_X` pelo valor literal durante o
+// `next build`. Num build de Docker os segredos de runtime ainda não existem —
+// só build args — então o bundle do navegador sairia com o placeholder gravado
+// dentro e o app iria pro ar apontando para "placeholder.supabase.co", sem
+// nenhum erro no build para avisar. Exigir que a URL e a chave sejam build args
+// resolveria, mas amarra o deploy a acertar build arg, que já foi fonte de
+// falha silenciosa aqui (variável registrada e vazia sobrescrevendo o default).
+//
+// Como todo acesso a dados acontece em Server Component ou Server Action, o
+// navegador nunca precisa da chave. Assim estas ficam sendo variáveis de
+// runtime comuns: mudar uma delas é reiniciar o container, não rebuildar.
+const envSchema = z
+  .object({
+    SUPABASE_URL: z.string().url(),
+    // O painel renomeou a chave pública de "anon" para "publishable", e
+    // projetos criados em épocas diferentes mostram uma ou outra. As duas
+    // servem no mesmo parâmetro do cliente, então aceito qualquer uma em vez de
+    // exigir que o nome bata com a versão do painel que você tem na tela.
+    SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
+    SUPABASE_ANON_KEY: z.string().min(1).optional(),
+    APP_TIMEZONE: z.string().default("America/Sao_Paulo"),
+    OPENAI_API_KEY: z.string().min(1),
+    OPENAI_TRANSCRIBE_MODEL: z.string().default("gpt-4o-transcribe"),
+    OPENAI_ANALYSIS_MODEL: z.string().default("gpt-4o-mini"),
+    UPLOAD_DIR: z.string().default("./data/uploads"),
+    MAX_UPLOAD_MB: z.coerce.number().default(200),
+  })
+  .transform((value, ctx) => {
+    const key = value.SUPABASE_PUBLISHABLE_KEY ?? value.SUPABASE_ANON_KEY;
 
-// `next build` imports every route module to collect page data, which
-// evaluates this file even though no request is ever handled — so it must
-// not throw just because secrets aren't present yet. Docker builds only have
-// build-time args (not the real runtime secrets), so during
-// PHASE_PRODUCTION_BUILD we fill in placeholders for whatever is missing;
-// any real values already set (e.g. from a build-arg) still win. Every other
-// phase (dev, `next start`, the actual server) validates for real.
+    if (!key) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "Defina SUPABASE_PUBLISHABLE_KEY (ou SUPABASE_ANON_KEY). " +
+          "A chave está em Project Settings > API Keys no painel do Supabase. " +
+          "Use a publicável, nunca a service_role — ela ignora o RLS.",
+        path: ["SUPABASE_PUBLISHABLE_KEY"],
+      });
+      return z.NEVER;
+    }
+
+    return { ...value, SUPABASE_KEY: key };
+  });
+
+// `next build` importa cada módulo de rota para coletar os dados das páginas, o
+// que avalia este arquivo mesmo sem nenhuma requisição acontecer — então ele não
+// pode explodir só porque os segredos ainda não estão presentes. Nas outras
+// fases a validação é pra valer.
 const isBuildPhase = process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
 
 const buildPlaceholders = {
-  DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder",
-  APP_PASSWORD: "placeholder",
-  SESSION_SECRET: "placeholder-secret-placeholder-secret",
+  SUPABASE_URL: "https://placeholder.supabase.co",
+  SUPABASE_PUBLISHABLE_KEY: "placeholder",
   OPENAI_API_KEY: "sk-placeholder",
 };
 
-// A deployment platform hands over an empty string for a variable that is
-// registered but has no value, rather than leaving it unset — Coolify does
-// this both for build args and for the container's own environment. Zod's
-// `.default()` only fills in `undefined`, so an empty string sails past it and
-// reaches the app as "": an empty APP_TIMEZONE then makes Intl.DateTimeFormat
-// throw "Invalid time zone specified", and an empty MAX_UPLOAD_MB coerces to 0
-// and rejects every upload. Normalising empties to absent lets the defaults do
-// their job. Required variables are unaffected in substance — an empty one is
-// still a hard error, just reported as missing rather than as too short — and
-// the placeholders stay confined to the build phase.
+// Uma plataforma de deploy entrega string vazia para uma variável registrada mas
+// sem valor, em vez de deixá-la ausente — o Coolify faz isso tanto em build arg
+// quanto no ambiente do container. O `.default()` do Zod só preenche
+// `undefined`, então a string vazia passa direto e chega no app como "": um
+// APP_TIMEZONE vazio faz o Intl.DateTimeFormat lançar "Invalid time zone
+// specified", e um MAX_UPLOAD_MB vazio vira 0 e rejeita todo upload. Normalizar
+// vazio para ausente deixa os defaults fazerem o trabalho deles.
 function withoutEmptyValues(source: NodeJS.ProcessEnv): Record<string, string | undefined> {
   return Object.fromEntries(Object.entries(source).filter(([, value]) => value !== ""));
 }
