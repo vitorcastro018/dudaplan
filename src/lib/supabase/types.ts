@@ -46,12 +46,22 @@ export type ProjectRow = {
   workspace_id: string;
   area_id: string | null;
   name: string;
+  /** "por que este projeto existe" — obrigatório e não vazio. */
+  problem: string;
   /** "como eu sei que terminou" — obrigatório e não vazio (invariante 1). */
   outcome: string;
   description: unknown | null;
   status: ProjectStatus;
   owner_id: string | null;
   start_date: string | null;
+  /**
+   * Os três prazos, todos obrigatórios. Não há ordem garantida entre eles: o
+   * banco não impõe nenhuma, então nada aqui pode assumir que otimista < realista.
+   */
+  deadline_optimistic: string;
+  deadline_mediocre: string;
+  deadline_realistic: string;
+  /** Prazo único herdado. Fora de uso na UI de projetos — ver a migration 006. */
   due_date: string | null;
   completed_at: string | null;
   position: number;
@@ -129,9 +139,21 @@ export interface Database {
         Pick<TaskRow, "workspace_id" | "title"> & Partial<TaskRow>,
         Partial<TaskRow>
       >;
+      // As colunas NOT NULL sem default entram no Pick para que um insert que
+      // esqueça uma delas falhe no `tsc`, e não só no banco em tempo de execução.
       projects: Table<
         ProjectRow,
-        Pick<ProjectRow, "workspace_id" | "name" | "outcome"> & Partial<ProjectRow>,
+        Pick<
+          ProjectRow,
+          | "workspace_id"
+          | "name"
+          | "problem"
+          | "outcome"
+          | "deadline_optimistic"
+          | "deadline_mediocre"
+          | "deadline_realistic"
+        > &
+          Partial<ProjectRow>,
         Partial<ProjectRow>
       >;
       routines: Table<

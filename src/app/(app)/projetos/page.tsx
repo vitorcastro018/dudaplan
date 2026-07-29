@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { listProjects } from "@/lib/data/projects";
 import { NewProjectDialog } from "@/features/projects/new-project-dialog";
+import { ProjectDeadlines } from "@/features/projects/project-deadlines";
 import { PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE } from "@/features/projects/status";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ export default async function ProjetosPage() {
     <div>
       <PageHeader
         title="Projetos"
-        description="Cada projeto carrega o resultado esperado — como você sabe que terminou."
+        description="Cada projeto declara o problema que resolve, como se sabe que terminou e três prazos."
         actions={<NewProjectDialog />}
       />
 
@@ -40,12 +41,19 @@ export default async function ProjetosPage() {
                   {PROJECT_STATUS_LABEL[project.status]}
                 </Badge>
               </div>
-              <p className="text-ink-muted line-clamp-3 text-sm">{project.outcome}</p>
-              {project.due_date && (
-                <p className="text-ink-muted mt-auto font-mono text-xs tabular-nums">
-                  prazo {project.due_date}
+
+              <div className="flex flex-col gap-2">
+                <p className="text-ink-muted line-clamp-2 text-sm">
+                  <span className="section-label mr-1.5">Problema</span>
+                  {project.problem}
                 </p>
-              )}
+                <p className="text-ink-muted line-clamp-2 text-sm">
+                  <span className="section-label mr-1.5">Resultado</span>
+                  {project.outcome}
+                </p>
+              </div>
+
+              <ProjectDeadlines project={project} className="border-line mt-auto border-t pt-3" />
             </Link>
           ))}
         </div>

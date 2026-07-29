@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { ApiError } from "@/lib/http";
 import { todayKey, dayRangeUtc } from "@/lib/date";
+import { NO_PROJECT } from "@/features/tasks/filters";
 import type { TaskRow } from "@/lib/supabase/types";
 
 // Tudo que não está concluído nem cancelado nem arquivado. É o recorte que o
@@ -82,6 +83,35 @@ export async function getTodayBoard(): Promise<TodayBoard> {
     todayTasks: (todayTasks.data ?? []) as TaskListItem[],
     completedToday: (completedToday.data ?? []) as TaskListItem[],
   };
+}
+
+/**
+ * Todas as tarefas do workspace, para a tela /tarefas.
+ *
+ * O filtro por projeto vai na consulta, e não numa passada em memória: a tela
+ * cresce sem limite e trazer tudo para descartar quase tudo é desperdício que
+ * só aparece quando já dói. `is("project_id", null)` e não `eq(..., null)` —
+ * em SQL `= NULL` nunca é verdadeiro e a lista voltaria sempre vazia.
+ *
+ * Sem `.order("status")`: a ordem alfabética dos valores põe 'backlog' e
+ * 'cancelled' na frente de 'in_progress'. Concluídas por último, o resto por
+ * posição, que é o que a pessoa arruma.
+ */
+export async function listTasks(projectId?: string): Promise<TaskListItem[]> {
+  const supabase = await createClient();
+
+  let query = supabase.from("tasks").select(TASK_FIELDS).is("archived_at", null);
+
+  if (projectId === NO_PROJECT) query = query.is("project_id", null);
+  else if (projectId) query = query.eq("project_id", projectId);
+
+  const { data, error } = await query
+    .order("completed_at", { nullsFirst: true })
+    .order("position")
+    .order("created_at");
+
+  if (error) throw new ApiError(500, "task_list_failed", error.message);
+  return (data ?? []) as TaskListItem[];
 }
 
 export async function listProjectTasks(projectId: string): Promise<TaskListItem[]> {

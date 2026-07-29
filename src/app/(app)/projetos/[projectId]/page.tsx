@@ -3,6 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { getProject } from "@/lib/data/projects";
 import { listProjectTasks } from "@/lib/data/tasks";
 import { ProjectTasks } from "@/features/projects/project-tasks";
+import { ProjectDeadlines } from "@/features/projects/project-deadlines";
+import { projectBaseline } from "@/features/projects/deadlines";
+import { formatDateKeyShort } from "@/lib/date-keys";
 import { PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE } from "@/features/projects/status";
 
 export const dynamic = "force-dynamic";
@@ -34,18 +37,28 @@ export default async function ProjectPage({
           </Badge>
         </div>
 
-        <p className="text-ink-2 mt-3 max-w-2xl text-sm">
-          <span className="section-label mr-2">Resultado esperado</span>
-          {project.outcome}
-        </p>
+        <div className="mt-4 grid max-w-4xl gap-4 sm:grid-cols-2">
+          <div className="border-line bg-surface rounded-[var(--radius-lg)] border p-4">
+            <p className="section-label mb-2">Problema a ser resolvido</p>
+            <p className="text-ink-2 text-sm">{project.problem}</p>
+          </div>
 
-        {(project.start_date || project.due_date) && (
-          <p className="text-ink-muted mt-2 font-mono text-xs tabular-nums">
-            {project.start_date && `início ${project.start_date}`}
-            {project.start_date && project.due_date && "  ·  "}
-            {project.due_date && `prazo ${project.due_date}`}
-          </p>
-        )}
+          <div className="border-line bg-surface rounded-[var(--radius-lg)] border p-4">
+            <p className="section-label mb-2">Resultado esperado</p>
+            <p className="text-ink-2 text-sm">{project.outcome}</p>
+          </div>
+        </div>
+
+        <div className="border-line bg-surface mt-4 max-w-4xl rounded-[var(--radius-lg)] border p-4">
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <p className="section-label">Prazos</p>
+            <p className="text-ink-muted font-mono text-xs tabular-nums">
+              início {formatDateKeyShort(projectBaseline(project))}
+              {!project.start_date && " (criação)"}
+            </p>
+          </div>
+          <ProjectDeadlines project={project} />
+        </div>
       </div>
 
       <ProjectTasks projectId={project.id} tasks={tasks} />

@@ -2,18 +2,24 @@ import { createClient } from "@/lib/supabase/server";
 import { ApiError } from "@/lib/http";
 import type { ProjectRow, ProjectStatus } from "@/lib/supabase/types";
 
+// Uma string literal só, sem concatenar: o supabase-js infere o formato da
+// linha a partir do texto do `select`, e `"a" + "b"` colapsa para `string`,
+// levando o retorno a `GenericStringError` em vez das colunas pedidas.
 const PROJECT_FIELDS =
-  "id, workspace_id, name, outcome, status, start_date, due_date, completed_at, position, created_at";
+  "id, workspace_id, name, problem, outcome, status, start_date, deadline_optimistic, deadline_mediocre, deadline_realistic, completed_at, position, created_at";
 
 export type ProjectListItem = Pick<
   ProjectRow,
   | "id"
   | "workspace_id"
   | "name"
+  | "problem"
   | "outcome"
   | "status"
   | "start_date"
-  | "due_date"
+  | "deadline_optimistic"
+  | "deadline_mediocre"
+  | "deadline_realistic"
   | "completed_at"
   | "position"
   | "created_at"

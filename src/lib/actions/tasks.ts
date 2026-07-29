@@ -11,6 +11,7 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 
 function revalidate() {
   revalidatePath("/hoje");
+  revalidatePath("/tarefas");
   revalidatePath("/projetos", "layout");
 }
 
@@ -139,6 +140,20 @@ export async function snoozeTaskToTomorrow(taskId: string): Promise<ActionResult
 
 export async function scheduleTaskForToday(taskId: string): Promise<ActionResult> {
   return updateTask(taskId, { scheduledDate: todayKey() });
+}
+
+/**
+ * Liga (ou desliga) a tarefa de um projeto.
+ *
+ * `null` desanexa. Passa por `updateTask` para herdar a validação de UUID: sem
+ * ela um id inventado chegaria ao banco e voltaria como erro de foreign key,
+ * cru, na cara da pessoa.
+ */
+export async function setTaskProject(
+  taskId: string,
+  projectId: string | null,
+): Promise<ActionResult> {
+  return updateTask(taskId, { projectId });
 }
 
 export async function deleteTask(taskId: string): Promise<ActionResult> {
