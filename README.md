@@ -13,31 +13,38 @@ Estado atual: **fatia 1** — login real, a tela "Hoje", rotinas diárias e proj
 
 Todo acesso a dados acontece em Server Component ou Server Action. O navegador nunca recebe a chave do Supabase, e a autorização é feita pelo RLS no banco — não por checagem na aplicação.
 
-## Preparar o Supabase
+## Supabase
 
-1. Aplique as migrations, **na ordem**, pelo SQL Editor ou com `supabase db push`:
+O projeto **`dudaplan`** (`drhnfkfdnhxcqzyqbpgc`, região `sa-east-1`) já está criado e com o schema aplicado: 25 tabelas, RLS em todas elas, invariantes de negócio e o trigger de cadastro. As migrations em `supabase/migrations/` são o registro do que foi aplicado — rodá-las de novo num projeto novo reproduz o mesmo estado.
 
-   | Arquivo | O que faz |
-   | --- | --- |
-   | `20260728000000_core_schema.sql` | as 25 tabelas e os invariantes que cabem em CHECK |
-   | `20260728000001_business_invariants.sql` | os invariantes que dependem de outras linhas, via trigger |
-   | `20260728000002_rls.sql` | RLS em todas as tabelas e privilégios da Data API |
-   | `20260728000003_auth_bootstrap.sql` | cria perfil, workspace e associação no cadastro |
+Se precisar recriar do zero, aplique na ordem:
 
-2. Em **Authentication > Providers > Email**, desligue a confirmação de e-mail. Sem isso o login depende de SMTP, e o servidor de e-mail padrão do Supabase só entrega para membros do projeto.
+| Arquivo | O que faz |
+| --- | --- |
+| `20260728000000_core_schema.sql` | as 25 tabelas e os invariantes que cabem em CHECK |
+| `20260728000001_business_invariants.sql` | os invariantes que dependem de outras linhas, via trigger |
+| `20260728000002_rls.sql` | RLS em todas as tabelas e privilégios da Data API |
+| `20260728000003_auth_bootstrap.sql` | cria perfil, workspace e associação no cadastro |
+| `20260728000004_security_advisor_fixes.sql` | correções apontadas pelos advisors |
 
-3. Crie seu usuário em **Authentication > Users > Add user**, com e-mail e senha.
+### Falta só criar seu usuário
 
-4. Confirme que o bootstrap funcionou:
+Em **Authentication > Users > Add user > Create new user**, com e-mail e senha, e **marque "Auto Confirm User"**. Marcando isso, o login não depende de SMTP — o servidor de e-mail padrão do Supabase só entrega para membros do projeto.
 
-   ```sql
-   select u.email, w.name, m.role
-   from public.users u
-   join public.memberships m on m.user_id = u.id
-   join public.workspaces w on w.id = m.workspace_id;
-   ```
+Depois confirme que o bootstrap rodou:
 
-   Precisa voltar uma linha com `role = 'owner'`. Se voltar vazio, o usuário foi criado antes da migration 4 — apague e recrie. **Sem a associação, o RLS esconde tudo e o app abre vazio.**
+```sql
+select u.email, w.name, m.role
+from public.users u
+join public.memberships m on m.user_id = u.id
+join public.workspaces w on w.id = m.workspace_id;
+```
+
+Precisa voltar uma linha com `role = 'owner'`. Se voltar vazio, **o RLS esconde tudo e o app abre vazio** — apague o usuário e recrie.
+
+### Onde achar URL e chave
+
+**Project Settings > API Keys**. A URL fica em **Project Settings > Data API**. As duas já estão no `.env` local deste repositório (que não vai para o Git).
 
 ## Desenvolvimento local
 

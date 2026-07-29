@@ -369,8 +369,28 @@ create policy "membros apagam" on task_tags for delete to authenticated
 -- tabelas criadas por SQL não são expostas automaticamente. Concedo só a
 -- `authenticated`: o DudaPlan não tem nenhuma tela pública, então `anon` não
 -- precisa enxergar tabela nenhuma — só o endpoint de login, que é do Auth.
+--
+-- Enumerando as tabelas do DudaPlan em vez de usar
+-- `ALL TABLES IN SCHEMA public`: o projeto do Supabase pode ser compartilhado
+-- com outras aplicações, e a forma abrangente revogaria o acesso de `anon` às
+-- tabelas delas também. Nada aqui toca em tabela que não seja nossa.
 
 grant usage on schema public to authenticated;
-grant select, insert, update, delete on all tables in schema public to authenticated;
 
-revoke all on all tables in schema public from anon;
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'users','workspaces','memberships','areas','projects','milestones','tasks',
+    'task_dependencies','tags','task_tags','routines','routine_logs',
+    'inbox_items','ai_suggestions','decisions','notes','attachments',
+    'weekly_reviews','meetings','meeting_participants','recordings',
+    'transcripts','transcript_segments','meeting_artifacts','activity_log'
+  ]
+  loop
+    execute format('grant select, insert, update, delete on %I to authenticated', t);
+    execute format('revoke all on %I from anon', t);
+  end loop;
+end;
+$$;
