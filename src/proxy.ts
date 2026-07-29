@@ -16,7 +16,7 @@ export const config = {
   // truncamento à custa de segurar 200 MB na memória, o que também anularia a
   // gravação em streaming de `saveMeetingAudio`.
   //
-  // Nada de autorização se perde: a rota chama `getCurrentUser()` por conta
+  // Nada de autorização se perde: a rota chama `getAuthClaims()` por conta
   // própria e o RLS continua valendo. O que ela deixa de fazer é renovar o
   // cookie de sessão nessa requisição — inócuo, já que qualquer navegação
   // seguinte renova.
@@ -43,9 +43,9 @@ export async function proxy(request: NextRequest) {
   // Roda sempre, inclusive para quem já está logado: é aqui que o token
   // renovado volta para o cookie. Sair cedo quando a sessão parece válida
   // deixaria o refresh nunca ser gravado, e a sessão morreria sozinha.
-  const { response, user } = await updateSession(request);
+  const { response, authenticated } = await updateSession(request);
 
-  if (user) return response;
+  if (authenticated) return response;
 
   if (pathname.startsWith("/api")) {
     return NextResponse.json(

@@ -2,11 +2,14 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { getProject, listProjectOptions } from "@/lib/data/projects";
 import { listProjectTasks } from "@/lib/data/tasks";
+import { listProjectMeetings } from "@/lib/data/meetings";
 import { ProjectTasks } from "@/features/projects/project-tasks";
+import { ProjectMeetings } from "@/features/projects/project-meetings";
 import { ProjectActions } from "@/features/projects/project-actions";
 import { ProjectDeadlines } from "@/features/projects/project-deadlines";
 import { projectBaseline } from "@/features/projects/deadlines";
 import { formatDateKeyShort } from "@/lib/date-keys";
+import { utcIsoToLocalDateTimeInput } from "@/lib/date";
 import { PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE } from "@/features/projects/status";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +23,15 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
   const project = await getProject(projectId);
   if (!project) notFound();
 
-  const [tasks, projects] = await Promise.all([listProjectTasks(project.id), listProjectOptions()]);
+  const [tasks, meetings, projects] = await Promise.all([
+    listProjectTasks(project.id),
+    listProjectMeetings(project.id),
+    listProjectOptions(),
+  ]);
+
+  // Sugestão de data/hora calculada no servidor, para respeitar o APP_TIMEZONE
+  // em vez do fuso do navegador — igual à tela /reunioes.
+  const now = utcIsoToLocalDateTimeInput(new Date().toISOString());
 
   return (
     <div className="flex flex-col gap-8">
@@ -62,6 +73,13 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
       </div>
 
       <ProjectTasks projectId={project.id} tasks={tasks} projects={projects} />
+
+      <ProjectMeetings
+        projectId={project.id}
+        meetings={meetings}
+        projects={projects}
+        defaultScheduledAt={now}
+      />
     </div>
   );
 }

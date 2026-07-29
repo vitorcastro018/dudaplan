@@ -193,11 +193,23 @@ function TaskRow({
   overdue?: boolean;
 }) {
   const [pending, startTransition] = React.useTransition();
-  const done = task.status === "done";
+  // Check otimista: o quadrado vira na hora do clique, sem esperar a ida ao
+  // servidor e o `revalidatePath` que vêm depois. `useOptimistic` volta sozinho
+  // ao valor real quando a transição termina — se a action falhar, o check
+  // desmarca de volta junto com o toast de erro.
+  const [done, setDone] = React.useOptimistic(task.status === "done");
 
   function run(action: () => Promise<ActionResult>) {
     startTransition(async () => {
       const result = await action();
+      if (!result.ok) toast.error(result.error);
+    });
+  }
+
+  function toggleDone(checked: boolean) {
+    startTransition(async () => {
+      setDone(checked);
+      const result = await setTaskDone(task.id, checked);
       if (!result.ok) toast.error(result.error);
     });
   }
@@ -212,7 +224,7 @@ function TaskRow({
       <CheckSquare
         size="sm"
         checked={done}
-        onChange={(checked) => run(() => setTaskDone(task.id, checked))}
+        onChange={toggleDone}
         aria-label={done ? `Reabrir ${task.title}` : `Concluir ${task.title}`}
       />
 

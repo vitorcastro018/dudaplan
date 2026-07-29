@@ -28,6 +28,18 @@ export function ProjectTasks({
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const editing = tasks.find((task) => task.id === editingId) ?? null;
 
+  // Check otimista: o quadrado vira na hora do clique, sem esperar a ida ao
+  // servidor e o `revalidatePath`. `useOptimistic` reprojeta a lista com o novo
+  // status e volta sozinho ao valor real quando a transição termina — se falhar,
+  // o check desmarca de volta junto com o toast.
+  const [optimisticTasks, toggleOptimistic] = React.useOptimistic(
+    tasks,
+    (current, { taskId, done }: { taskId: string; done: boolean }) =>
+      current.map((task) =>
+        task.id === taskId ? { ...task, status: done ? "done" : "todo" } : task,
+      ),
+  );
+
   function handleCreate(formData: FormData) {
     startTransition(async () => {
       const result = await createTask(formData);
@@ -38,6 +50,7 @@ export function ProjectTasks({
 
   function handleToggle(taskId: string, done: boolean) {
     startTransition(async () => {
+      toggleOptimistic({ taskId, done });
       const result = await setTaskDone(taskId, done);
       if (!result.ok) toast.error(result.error);
     });
@@ -62,11 +75,11 @@ export function ProjectTasks({
         </Button>
       </form>
 
-      {tasks.length === 0 ? (
+      {optimisticTasks.length === 0 ? (
         <EmptyState title="Sem tarefas" description="Adicione a primeira tarefa deste projeto." />
       ) : (
         <div className="border-line bg-surface divide-line divide-y rounded-[var(--radius-lg)] border">
-          {tasks.map((task) => {
+          {optimisticTasks.map((task) => {
             const done = task.status === "done";
             return (
               <div key={task.id} className="flex items-center gap-3 px-4 py-3">

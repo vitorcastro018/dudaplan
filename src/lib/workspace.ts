@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
-import { createClient, getCurrentUser } from "@/lib/supabase/server";
+import { createClient, getAuthClaims } from "@/lib/supabase/server";
 import { ApiError } from "@/lib/http";
 
 export interface CurrentContext {
@@ -18,14 +18,14 @@ export interface CurrentContext {
  * `cache()` para não repetir a consulta a cada componente do mesmo render.
  */
 export const getContext = cache(async (): Promise<CurrentContext | null> => {
-  const user = await getCurrentUser();
-  if (!user) return null;
+  const claims = await getAuthClaims();
+  if (!claims) return null;
 
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("memberships")
     .select("workspace_id")
-    .eq("user_id", user.id)
+    .eq("user_id", claims.userId)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -33,7 +33,7 @@ export const getContext = cache(async (): Promise<CurrentContext | null> => {
   if (error) throw new ApiError(500, "workspace_lookup_failed", error.message);
   if (!data) return null;
 
-  return { userId: user.id, workspaceId: data.workspace_id };
+  return { userId: claims.userId, workspaceId: data.workspace_id };
 });
 
 /**
@@ -45,13 +45,13 @@ export const getContext = cache(async (): Promise<CurrentContext | null> => {
  * calar isso deixaria o app abrindo vazio sem explicação.
  */
 export async function requireContext(): Promise<CurrentContext> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const claims = await getAuthClaims();
+  if (!claims) redirect("/login");
 
   const context = await getContext();
   if (!context) {
     throw new Error(
-      `A conta ${user.email} não tem workspace associado. Isso acontece quando ela foi ` +
+      `A conta ${claims.email ?? claims.userId} não tem workspace associado. Isso acontece quando ela foi ` +
         `criada antes do trigger on_auth_user_created existir — rode a migration ` +
         `20260728000003_auth_bootstrap.sql e recrie o usuário.`,
     );

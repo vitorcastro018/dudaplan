@@ -3,7 +3,7 @@ import { stat } from "node:fs/promises";
 import { Readable } from "node:stream";
 import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/env";
-import { createClient, getCurrentUser } from "@/lib/supabase/server";
+import { createClient, getAuthClaims } from "@/lib/supabase/server";
 import { getMeetingRecording } from "@/lib/data/meetings";
 import { deleteMeetingAudioDir, resolveAudioPath, saveMeetingAudio } from "@/lib/storage/audio";
 import { fail, handleApiError, notFound, ok, unauthorized } from "@/lib/http";
@@ -58,8 +58,8 @@ function resolveExtension(file: File): string | null {
 /** Sessão + reunião visível. O `select` já passa pelo RLS, então uma reunião de
  *  outro workspace volta como "não encontrada". */
 async function requireMeeting(meetingId: string) {
-  const user = await getCurrentUser();
-  if (!user) return { error: unauthorized() as NextResponse };
+  const claims = await getAuthClaims();
+  if (!claims) return { error: unauthorized() as NextResponse };
 
   const supabase = await createClient();
   const { data, error } = await supabase

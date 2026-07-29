@@ -2,6 +2,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { env } from "@/lib/env";
+import { getSigningKeys } from "@/lib/supabase/jwks";
 import type { Database } from "@/lib/supabase/types";
 
 /**
@@ -34,28 +35,51 @@ export async function createClient() {
   });
 }
 
+/** O essencial que a sessão precisa provar: quem é, e — para a mensagem de erro
+ *  de "sem workspace" — qual o e-mail. */
+export interface AuthClaims {
+  userId: string;
+  email?: string;
+}
+
 /**
- * Usuário autenticado, ou null.
+ * Identidade da sessão, verificada, ou null.
  *
- * `getUser()` e não `getSession()`: getSession lê o cookie sem validar a
- * assinatura, e no servidor o cookie é dado que o usuário controla. A própria
- * documentação do auth-js marca getSession como inseguro nesse contexto.
+ * `getClaims()` e não `getUser()`: as duas validam a assinatura do JWT (então
+ * nenhuma abre a brecha do `getSession`, que confia no cookie cru), mas o
+ * `getUser` faz isso mandando o token ao GoTrue **a cada chamada** — uma ida à
+ * rede inteira por requisição. O `getClaims`, com as chaves públicas em mãos
+ * (ver `jwks.ts`), verifica a assinatura localmente, sem rede. Numa navegação
+ * que autentica no proxy e de novo no layout, trocar as duas por verificação
+ * local é o que tira o atraso de cada clique e de cada troca de página.
  *
- * Memoizado com `cache()` porque essa segurança tem preço: `getUser()` não
- * decodifica o JWT localmente — ele vai até o GoTrue validar, o que é uma ida
- * à rede inteira por chamada. Sem memoizar, uma navegação fazia de 5 a 7 dessas
- * idas em sequência (layout e página chamam `requireContext`, que chamava esta
- * função e ainda passava por `getContext`, que a chamava de novo), e o atraso
- * aparecia como lentidão a cada clique.
+ * Em projeto que ainda assina com segredo simétrico (HS256) não há chave
+ * pública, e o `getClaims` cai sozinho para o caminho do `getUser` — mesma
+ * segurança, mesmo custo de antes, nunca pior.
  *
- * `cache()` tem escopo de **uma requisição**: cada requisição memoiza do zero,
- * então nenhuma sessão é reaproveitada entre usuários — o que aqui não é
+ * O que se abre mão: o `getUser` confirma no servidor que a conta não foi
+ * apagada ou banida no meio da sessão; a verificação local confia no token até
+ * ele expirar (~1h) e ser renovado. Para este app é a troca recomendada pelo
+ * próprio Supabase, e o proxy renova o token de tempos em tempos.
+ *
+ * Memoizado com `cache()`, de escopo por requisição: cada requisição memoiza do
+ * zero, então nenhuma sessão vaza de um usuário para outro — aqui isso não é
  * detalhe de performance, é a diferença entre memoizar e vazar sessão.
  */
-export const getCurrentUser = cache(async () => {
+export const getAuthClaims = cache(async (): Promise<AuthClaims | null> => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
+  const keys = await getSigningKeys();
+
+  try {
+    const { data, error } = await supabase.auth.getClaims(
+      undefined,
+      keys && keys.length > 0 ? { jwks: { keys } } : undefined,
+    );
+    if (error || !data?.claims?.sub) return null;
+    return { userId: data.claims.sub, email: data.claims.email };
+  } catch {
+    // JWT ausente, malformado ou não verificável: sessão inválida, trata como
+    // deslogado em vez de derrubar o render.
+    return null;
+  }
 });

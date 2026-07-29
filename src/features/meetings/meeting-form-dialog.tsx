@@ -26,6 +26,9 @@ export function MeetingFormDialog({
   onClose,
   /** Data/hora local sugerida ao criar ("AAAA-MM-DDTHH:MM"). */
   defaultScheduledAt,
+  /** Projeto já selecionado ao criar — usado quando a reunião nasce da página
+   *  de um projeto. Ignorado ao editar, que segue o projeto da própria reunião. */
+  defaultProjectId,
 }: {
   /** Ausente = criar. */
   meeting?: MeetingDetail;
@@ -33,11 +36,14 @@ export function MeetingFormDialog({
   open: boolean;
   onClose: () => void;
   defaultScheduledAt?: string;
+  defaultProjectId?: string;
 }) {
   const editing = meeting !== undefined;
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
-  const [projectId, setProjectId] = React.useState<string>(meeting?.project_id ?? "");
+  const [projectId, setProjectId] = React.useState<string>(
+    meeting?.project_id ?? defaultProjectId ?? "",
+  );
   const [newProjectName, setNewProjectName] = React.useState<string | null>(null);
   const [creatingProject, setCreatingProject] = React.useState(false);
 

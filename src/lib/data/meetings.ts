@@ -74,9 +74,45 @@ export async function listMeetings(): Promise<MeetingSummary[]> {
 
   if (error) throw new ApiError(500, "meeting_list_failed", error.message);
 
-  const rows = (meetings ?? []) as MeetingListItem[];
+  return enrichMeetings((meetings ?? []) as MeetingListItem[]);
+}
+
+/**
+ * As reuniões de um projeto, para a aba do projeto — o mesmo recorte que
+ * `listProjectTasks` faz com as tarefas.
+ *
+ * Filtra por `project_id` na consulta, e não em memória depois de trazer tudo:
+ * a nota em `listTasks` vale igual aqui. O RLS continua cuidando do workspace.
+ */
+export async function listProjectMeetings(projectId: string): Promise<MeetingSummary[]> {
+  const supabase = await createClient();
+
+  const { data: meetings, error } = await supabase
+    .from("meetings")
+    .select(MEETING_FIELDS)
+    .eq("project_id", projectId)
+    .is("archived_at", null)
+    .order("scheduled_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false });
+
+  if (error) throw new ApiError(500, "meeting_list_failed", error.message);
+
+  return enrichMeetings((meetings ?? []) as MeetingListItem[]);
+}
+
+/**
+ * Cruza uma lista de reuniões com participantes, gravações e nome do projeto.
+ *
+ * Consultas separadas em vez de embedding do PostgREST (`select("*,
+ * projects(name)")`): `src/lib/supabase/types.ts` é escrito à mão e declara
+ * `Relationships: []`, então o embedding não tipa e o retorno degrada para
+ * `GenericStringError`. É o mesmo caminho que `getRoutineBoard` já toma, pelo
+ * mesmo motivo — e o cruzamento por `Map` é barato numa lista dessa ordem.
+ */
+async function enrichMeetings(rows: MeetingListItem[]): Promise<MeetingSummary[]> {
   if (rows.length === 0) return [];
 
+  const supabase = await createClient();
   const ids = rows.map((meeting) => meeting.id);
   const projectIds = [...new Set(rows.map((m) => m.project_id).filter((id): id is string => !!id))];
 
