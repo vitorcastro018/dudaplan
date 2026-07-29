@@ -13,7 +13,10 @@ const dateKey = z
   .nullable()
   .optional();
 
-export const projectStatusSchema = z.enum(["planning", "active", "on_hold", "done", "cancelled"]);
+// Sem `export`: num arquivo "use server" todo export é tratado como Server
+// Function, e um objeto Zod não é função. Nada importava este schema — ele só é
+// usado logo abaixo, no mesmo arquivo.
+const projectStatusSchema = z.enum(["planning", "active", "on_hold", "done", "cancelled"]);
 
 // Prazo obrigatório: mesmo formato do `dateKey` acima, mas sem `.nullable()`
 // nem `.optional()`, e com mensagem própria — "Required" não diz qual dos três
