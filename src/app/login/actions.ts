@@ -106,10 +106,31 @@ export async function signup(_prev: LoginState, formData: FormData): Promise<Log
     // "User already registered" é a mensagem do Supabase e vaza a existência da
     // conta. Aqui isso é aceitável e útil: é um app pessoal, e a alternativa
     // seria deixar você travado sem entender por que o cadastro não completa.
+    // Só chega aqui com a confirmação de e-mail DESLIGADA; ligada, o caso cai
+    // na checagem de `identities` logo abaixo.
     if (error.message.toLowerCase().includes("already registered")) {
       return { error: "Já existe uma conta com esse e-mail. Tente entrar." };
     }
     return { error: error.message };
+  }
+
+  // Cadastro repetido não vem como erro. Com a confirmação de e-mail ligada, um
+  // e-mail que já tem conta confirmada devolve 200 com um usuário obfuscado —
+  // id trocado, `identities` vazio, sem sessão — para a tela de cadastro não
+  // virar um oráculo de quais e-mails existem. O Supabase registra o evento
+  // como `user_repeated_signup` e, principalmente, **não troca a senha**.
+  //
+  // Sem esta checagem o fluxo cai no `!data.session` abaixo e anuncia "Conta
+  // criada, confirme pelo e-mail" para uma conta que não foi criada e um e-mail
+  // que nunca foi enviado. Foi assim que um cadastro repetido virou um login
+  // impossível aqui: a senha nova era silenciosamente descartada, a válida
+  // continuava sendo a do primeiro cadastro, e a tela dizia que estava tudo bem.
+  //
+  // `identities` é o discriminador documentado. Quando o array vem `undefined`
+  // a comparação é falsa de propósito: na dúvida, seguir para o fluxo normal
+  // erra para o lado de não acusar conta existente sem ter certeza.
+  if (data.user?.identities?.length === 0) {
+    return { error: "Já existe uma conta com esse e-mail. Tente entrar." };
   }
 
   // Sem sessão na resposta, o projeto exige confirmação por e-mail. Dizer isso
