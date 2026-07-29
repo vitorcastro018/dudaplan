@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { env } from "@/lib/env";
@@ -39,11 +40,22 @@ export async function createClient() {
  * `getUser()` e não `getSession()`: getSession lê o cookie sem validar a
  * assinatura, e no servidor o cookie é dado que o usuário controla. A própria
  * documentação do auth-js marca getSession como inseguro nesse contexto.
+ *
+ * Memoizado com `cache()` porque essa segurança tem preço: `getUser()` não
+ * decodifica o JWT localmente — ele vai até o GoTrue validar, o que é uma ida
+ * à rede inteira por chamada. Sem memoizar, uma navegação fazia de 5 a 7 dessas
+ * idas em sequência (layout e página chamam `requireContext`, que chamava esta
+ * função e ainda passava por `getContext`, que a chamava de novo), e o atraso
+ * aparecia como lentidão a cada clique.
+ *
+ * `cache()` tem escopo de **uma requisição**: cada requisição memoiza do zero,
+ * então nenhuma sessão é reaproveitada entre usuários — o que aqui não é
+ * detalhe de performance, é a diferença entre memoizar e vazar sessão.
  */
-export async function getCurrentUser() {
+export const getCurrentUser = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   return user;
-}
+});
