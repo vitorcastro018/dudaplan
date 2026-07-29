@@ -20,7 +20,7 @@ export function Sidebar({ projects }: { projects: SidebarProject[] }) {
   });
 
   return (
-    <aside className="border-line bg-paper-sunk flex h-full w-[248px] shrink-0 flex-col border-r">
+    <aside className="border-line bg-paper-sunk sticky top-0 flex h-screen w-[248px] shrink-0 flex-col border-r">
       <div className="flex items-center gap-2 px-5 py-5">
         <span className="bg-accent flex h-6 w-6 items-center justify-center rounded-[6px]">
           <span className="h-2.5 w-2.5 rounded-[2px] bg-white" />
@@ -36,12 +36,6 @@ export function Sidebar({ projects }: { projects: SidebarProject[] }) {
           active={pathname.startsWith("/hoje")}
         />
         <NavLink
-          href="/tarefas"
-          icon={ListChecks}
-          label="Tarefas"
-          active={pathname.startsWith("/tarefas")}
-        />
-        <NavLink
           href="/rotinas"
           icon={Repeat}
           label="Rotinas"
@@ -55,7 +49,7 @@ export function Sidebar({ projects }: { projects: SidebarProject[] }) {
         />
 
         {projects.length > 0 && (
-          <div className="mt-2 flex flex-col gap-0.5 pl-2">
+          <div className="my-2 flex flex-col gap-0.5 pl-2">
             {projects.map((project) => (
               <Link
                 key={project.id}
@@ -70,6 +64,13 @@ export function Sidebar({ projects }: { projects: SidebarProject[] }) {
             ))}
           </div>
         )}
+
+        <NavLink
+          href="/tarefas"
+          icon={ListChecks}
+          label="Tarefas"
+          active={pathname.startsWith("/tarefas")}
+        />
       </nav>
 
       <div className="border-line flex items-center justify-between border-t px-5 py-4">
