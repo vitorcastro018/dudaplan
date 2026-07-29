@@ -24,6 +24,9 @@ const envSchema = z
     SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
     SUPABASE_ANON_KEY: z.string().min(1).optional(),
     APP_TIMEZONE: z.string().default("America/Sao_Paulo"),
+    // Se definida, a tela de cadastro passa a exigir este código. Deixe vazia
+    // para cadastro aberto. Ver o comentário em src/app/login/actions.ts.
+    APP_SIGNUP_CODE: z.string().min(1).optional(),
     // Opcional enquanto as reuniões estiverem fora (fatia 1). Exigir uma chave
     // que nada usa só criaria um motivo a mais para o container não subir.
     // Volta a ser obrigatória quando o pipeline de IA voltar.

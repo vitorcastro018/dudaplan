@@ -84,10 +84,27 @@ Todas as variáveis são de **runtime** — nenhuma precisa ser build arg, e tro
 
 Se esquecer uma das duas, o `docker compose` para na hora dizendo qual falta, e o entrypoint repete a checagem antes de o servidor subir — em vez de o container subir e morrer depois com um erro de validação no meio de um stack trace.
 
+Recomendado também preencher `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` (gere com `openssl rand -base64 32`). Sem uma chave estável o Next gera uma nova a cada build, e toda aba aberta passa a falhar com "Failed to find Server Action" depois de um redeploy.
+
 Configure também:
 - health check em `GET /api/health`;
 - domínio com TLS (necessário para a gravação de áudio da fatia 2, que exige HTTPS);
 - um volume persistente em `/app/data`, também para a fatia 2.
+
+### Rodando atrás do domínio do Coolify
+
+O proxy do Coolify termina o TLS e fala HTTP com o container. Duas consequências, ambas já tratadas no código:
+
+- **Redirect de login.** O `src/proxy.ts` monta a URL a partir de `nextUrl`, não da URL crua da requisição. Remontar da URL crua mandaria para `http://seu-dominio/login`, e nesse salto o cookie de sessão (que é `Secure`) não seria enviado.
+- **CSRF das Server Actions.** O Next compara o `Origin` com o `Host` ou `X-Forwarded-Host` e rejeita divergência. O Traefik do Coolify normalmente repassa esse cabeçalho e nada precisa ser feito. Se **nenhuma** mutação funcionar — login falha, criar tarefa não salva — é esse o motivo: preencha `APP_ALLOWED_ORIGINS` com o seu domínio.
+
+### Criar conta
+
+A tela de login tem duas abas: **Entrar** e **Criar conta**. Dá para criar o primeiro usuário direto por ali, sem passar pelo painel do Supabase — o trigger de cadastro monta perfil, workspace e associação automaticamente.
+
+Se a confirmação por e-mail estiver ligada no projeto, o cadastro avisa que é preciso confirmar pelo link. Como o SMTP padrão do Supabase só entrega para membros do projeto, o mais prático é desligar a confirmação em **Authentication > Providers > Email**.
+
+Com o app num domínio público, cadastro aberto significa que qualquer pessoa que descubra a URL cria uma conta. Não vaza dado — o RLS dá a cada conta o seu próprio workspace, e o isolamento está coberto pelos testes em `supabase/tests/` — mas enche o projeto de contas que você não convidou. Para evitar, preencha `APP_SIGNUP_CODE`: a aba de cadastro passa a pedir esse código.
 
 Para rodar local: `cp .env.example .env`, preencha as duas, e `docker compose up -d --build`.
 

@@ -20,6 +20,15 @@ services:
       # configuradas no Coolify (ou do .env local, em desenvolvimento).
       SUPABASE_URL: ${SUPABASE_URL:?defina SUPABASE_URL (Project Settings > Data API no painel do Supabase)}
       SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?defina SUPABASE_PUBLISHABLE_KEY (Project Settings > API Keys — use a publicavel, NUNCA a service_role)}
+      # Domínios extras de onde as Server Actions podem ser chamadas. Só é
+      # necessário se o proxy não repassar X-Forwarded-Host — ver next.config.ts.
+      APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS:-}
+      # Se definido, a tela de cadastro exige este código. Vazio = cadastro aberto.
+      APP_SIGNUP_CODE: ${APP_SIGNUP_CODE:-}
+      # Mantém as referências das Server Actions válidas entre builds. Sem uma
+      # chave estável o Next gera uma nova a cada build, e toda aba aberta passa
+      # a falhar com "Failed to find Server Action" depois de um redeploy.
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:-}
       # Opcional na fatia 1: nada usa OpenAI enquanto as reuniões estiverem fora.
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_TRANSCRIBE_MODEL: ${OPENAI_TRANSCRIBE_MODEL:-gpt-4o-transcribe}

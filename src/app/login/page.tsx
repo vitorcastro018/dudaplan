@@ -1,5 +1,10 @@
 import { Suspense } from "react";
+import { env } from "@/lib/env";
 import { LoginForm } from "./login-form";
+
+// Renderiza a cada requisição: se fosse estática, a decisão de exigir código
+// ficaria congelada no valor que a variável tinha durante o build.
+export const dynamic = "force-dynamic";
 
 export default function LoginPage() {
   return (
@@ -13,7 +18,7 @@ export default function LoginPage() {
           <p className="text-ink-muted text-sm">Controle de projetos, tarefas e reuniões.</p>
         </div>
         <Suspense>
-          <LoginForm />
+          <LoginForm requiresCode={Boolean(env.APP_SIGNUP_CODE)} />
         </Suspense>
       </div>
     </div>

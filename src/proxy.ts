@@ -22,7 +22,14 @@ export async function proxy(request: NextRequest) {
     );
   }
 
-  const loginUrl = new URL("/login", request.url);
+  // `nextUrl.clone()` em vez de `new URL("/login", request.url)`: atrás do proxy
+  // do Coolify o TLS termina fora do container, então a URL crua da requisição
+  // chega como http. Remontar a partir dela mandaria o navegador para
+  // http://seu-dominio/login, que só funciona por causa do redirect do proxy —
+  // e no caminho o cookie de sessão, que é Secure, não seria enviado.
+  const loginUrl = request.nextUrl.clone();
+  loginUrl.pathname = "/login";
+  loginUrl.search = "";
   loginUrl.searchParams.set("next", pathname);
   return NextResponse.redirect(loginUrl);
 }
