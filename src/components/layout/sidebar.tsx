@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarCheck, FolderKanban, ListChecks, LogOut, Repeat } from "lucide-react";
+import { CalendarCheck, FolderKanban, ListChecks, LogOut, Mic, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logout } from "@/app/login/actions";
 
@@ -64,6 +64,13 @@ export function Sidebar({ projects }: { projects: SidebarProject[] }) {
             ))}
           </div>
         )}
+
+        <NavLink
+          href="/reunioes"
+          icon={Mic}
+          label="Reuniões"
+          active={pathname.startsWith("/reunioes")}
+        />
 
         <NavLink
           href="/tarefas"

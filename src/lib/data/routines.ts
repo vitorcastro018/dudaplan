@@ -5,7 +5,16 @@ import type { RoutineRow } from "@/lib/supabase/types";
 
 export type RoutineListItem = Pick<
   RoutineRow,
-  "id" | "workspace_id" | "name" | "description" | "cadence" | "active_days" | "position"
+  | "id"
+  | "workspace_id"
+  | "name"
+  | "description"
+  | "cadence"
+  | "active_days"
+  | "shift"
+  | "link"
+  | "target_time"
+  | "position"
 > & { done: boolean; skipped: boolean };
 
 export interface RoutineBoard {
@@ -26,7 +35,9 @@ export async function getRoutineBoard(date = todayKey()): Promise<RoutineBoard> 
   const [routines, logs] = await Promise.all([
     supabase
       .from("routines")
-      .select("id, workspace_id, name, description, cadence, active_days, position")
+      .select(
+        "id, workspace_id, name, description, cadence, active_days, shift, link, target_time, position",
+      )
       .is("archived_at", null)
       .order("position")
       .order("created_at"),

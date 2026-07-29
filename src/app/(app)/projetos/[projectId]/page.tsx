@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { getProject } from "@/lib/data/projects";
+import { getProject, listProjectOptions } from "@/lib/data/projects";
 import { listProjectTasks } from "@/lib/data/tasks";
 import { ProjectTasks } from "@/features/projects/project-tasks";
+import { ProjectActions } from "@/features/projects/project-actions";
 import { ProjectDeadlines } from "@/features/projects/project-deadlines";
 import { projectBaseline } from "@/features/projects/deadlines";
 import { formatDateKeyShort } from "@/lib/date-keys";
@@ -10,11 +11,7 @@ import { PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE } from "@/features/projects/s
 
 export const dynamic = "force-dynamic";
 
-export default async function ProjectPage({
-  params,
-}: {
-  params: Promise<{ projectId: string }>;
-}) {
+export default async function ProjectPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params;
 
   // O RLS já devolve null para projeto de outro workspace, então "não achou" e
@@ -23,7 +20,7 @@ export default async function ProjectPage({
   const project = await getProject(projectId);
   if (!project) notFound();
 
-  const tasks = await listProjectTasks(project.id);
+  const [tasks, projects] = await Promise.all([listProjectTasks(project.id), listProjectOptions()]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -32,9 +29,12 @@ export default async function ProjectPage({
           <h1 className="font-display text-ink text-3xl font-medium tracking-tight">
             {project.name}
           </h1>
-          <Badge tone={PROJECT_STATUS_TONE[project.status]}>
-            {PROJECT_STATUS_LABEL[project.status]}
-          </Badge>
+          <div className="flex shrink-0 items-center gap-2">
+            <Badge tone={PROJECT_STATUS_TONE[project.status]}>
+              {PROJECT_STATUS_LABEL[project.status]}
+            </Badge>
+            <ProjectActions project={project} />
+          </div>
         </div>
 
         <div className="mt-4 grid max-w-4xl gap-4 sm:grid-cols-2">
@@ -61,7 +61,7 @@ export default async function ProjectPage({
         </div>
       </div>
 
-      <ProjectTasks projectId={project.id} tasks={tasks} />
+      <ProjectTasks projectId={project.id} tasks={tasks} projects={projects} />
     </div>
   );
 }

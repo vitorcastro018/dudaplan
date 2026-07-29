@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { AlarmClock, CalendarClock, Plus, Trash2 } from "lucide-react";
+import { AlarmClock, CalendarClock, Pencil, Plus, Trash2 } from "lucide-react";
 import { CheckSquare } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,13 +19,8 @@ import {
 } from "@/lib/actions/tasks";
 import type { TaskListItem, TodayBoard as TodayBoardData } from "@/lib/data/tasks";
 import type { TaskPriority } from "@/lib/supabase/types";
-
-const PRIORITY_LABEL: Record<TaskPriority, string> = {
-  low: "Baixa",
-  medium: "Média",
-  high: "Alta",
-  urgent: "Urgente",
-};
+import { TASK_PRIORITY_LABEL } from "@/features/tasks/labels";
+import { EditTaskDialog, type TaskProjectOption } from "@/features/tasks/edit-task-dialog";
 
 const PRIORITY_TONE: Record<TaskPriority, "neutral" | "ochre" | "danger"> = {
   low: "neutral",
@@ -39,7 +34,7 @@ export function TodayBoard({
   projects,
 }: {
   board: TodayBoardData;
-  projects: { id: string; name: string }[];
+  projects: TaskProjectOption[];
 }) {
   const projectName = React.useMemo(
     () => new Map(projects.map((project) => [project.id, project.name])),
@@ -47,6 +42,15 @@ export function TodayBoard({
   );
 
   const nothingToDo = board.overdue.length === 0 && board.todayTasks.length === 0;
+
+  // O diálogo é montado uma vez aqui, e não dentro de cada linha: guardar o id
+  // e reencontrar a tarefa nas três listas mantém o conteúdo atualizado depois
+  // do `revalidatePath`, e evita 50 diálogos fechados no DOM.
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const editing =
+    [...board.overdue, ...board.todayTasks, ...board.completedToday].find(
+      (task) => task.id === editingId,
+    ) ?? null;
 
   return (
     <div className="flex flex-col gap-8">
@@ -60,7 +64,13 @@ export function TodayBoard({
           hint="Passaram da data. Conclua ou traga para hoje."
         >
           {board.overdue.map((task) => (
-            <TaskRow key={task.id} task={task} projectName={projectName} overdue />
+            <TaskRow
+              key={task.id}
+              task={task}
+              projectName={projectName}
+              onEdit={setEditingId}
+              overdue
+            />
           ))}
         </Section>
       )}
@@ -73,7 +83,7 @@ export function TodayBoard({
           />
         ) : (
           board.todayTasks.map((task) => (
-            <TaskRow key={task.id} task={task} projectName={projectName} />
+            <TaskRow key={task.id} task={task} projectName={projectName} onEdit={setEditingId} />
           ))
         )}
       </Section>
@@ -81,9 +91,19 @@ export function TodayBoard({
       {board.completedToday.length > 0 && (
         <Section title="Concluídas hoje" count={board.completedToday.length} tone="pine">
           {board.completedToday.map((task) => (
-            <TaskRow key={task.id} task={task} projectName={projectName} />
+            <TaskRow key={task.id} task={task} projectName={projectName} onEdit={setEditingId} />
           ))}
         </Section>
+      )}
+
+      {editing && (
+        <EditTaskDialog
+          key={editing.id}
+          task={editing}
+          projects={projects}
+          open
+          onClose={() => setEditingId(null)}
+        />
       )}
     </div>
   );
@@ -164,10 +184,12 @@ function todayValue(): string {
 function TaskRow({
   task,
   projectName,
+  onEdit,
   overdue = false,
 }: {
   task: TaskListItem;
   projectName: Map<string, string>;
+  onEdit: (taskId: string) => void;
   overdue?: boolean;
 }) {
   const [pending, startTransition] = React.useTransition();
@@ -212,7 +234,7 @@ function TaskRow({
       </div>
 
       {task.priority !== "medium" && (
-        <Badge tone={PRIORITY_TONE[task.priority]}>{PRIORITY_LABEL[task.priority]}</Badge>
+        <Badge tone={PRIORITY_TONE[task.priority]}>{TASK_PRIORITY_LABEL[task.priority]}</Badge>
       )}
 
       <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
@@ -225,10 +247,16 @@ function TaskRow({
           </IconButton>
         )}
         {!done && (
-          <IconButton label="Adiar para amanhã" onClick={() => run(() => snoozeTaskToTomorrow(task.id))}>
+          <IconButton
+            label="Adiar para amanhã"
+            onClick={() => run(() => snoozeTaskToTomorrow(task.id))}
+          >
             <CalendarClock className="h-4 w-4" />
           </IconButton>
         )}
+        <IconButton label="Editar" onClick={() => onEdit(task.id)}>
+          <Pencil className="h-4 w-4" />
+        </IconButton>
         <IconButton label="Excluir" onClick={() => run(() => deleteTask(task.id))} danger>
           <Trash2 className="h-4 w-4" />
         </IconButton>

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { CheckSquare } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,16 +12,21 @@ import { cn } from "@/lib/utils";
 import { createTask, setTaskDone } from "@/lib/actions/tasks";
 import type { TaskListItem } from "@/lib/data/tasks";
 import { TASK_STATUS_LABEL, TASK_STATUS_TONE } from "@/features/tasks/labels";
+import { EditTaskDialog, type TaskProjectOption } from "@/features/tasks/edit-task-dialog";
 
 export function ProjectTasks({
   projectId,
   tasks,
+  projects,
 }: {
   projectId: string;
   tasks: TaskListItem[];
+  projects: TaskProjectOption[];
 }) {
   const formRef = React.useRef<HTMLFormElement>(null);
   const [pending, startTransition] = React.useTransition();
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const editing = tasks.find((task) => task.id === editingId) ?? null;
 
   function handleCreate(formData: FormData) {
     startTransition(async () => {
@@ -44,7 +49,13 @@ export function ProjectTasks({
 
       <form ref={formRef} action={handleCreate} className="flex gap-2">
         <input type="hidden" name="projectId" value={projectId} />
-        <Input name="title" placeholder="Nova tarefa deste projeto" required maxLength={300} className="flex-1" />
+        <Input
+          name="title"
+          placeholder="Nova tarefa deste projeto"
+          required
+          maxLength={300}
+          className="flex-1"
+        />
         <Button type="submit" disabled={pending}>
           <Plus className="h-4 w-4" />
           Adicionar
@@ -79,10 +90,28 @@ export function ProjectTasks({
                   </span>
                 )}
                 <Badge tone={TASK_STATUS_TONE[task.status]}>{TASK_STATUS_LABEL[task.status]}</Badge>
+                <button
+                  type="button"
+                  aria-label={`Editar ${task.title}`}
+                  onClick={() => setEditingId(task.id)}
+                  className="text-ink-muted hover:bg-paper-sunk hover:text-ink rounded-[var(--radius-sm)] p-1.5"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
               </div>
             );
           })}
         </div>
+      )}
+
+      {editing && (
+        <EditTaskDialog
+          key={editing.id}
+          task={editing}
+          projects={projects}
+          open
+          onClose={() => setEditingId(null)}
+        />
       )}
     </section>
   );

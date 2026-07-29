@@ -1,23 +1,29 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireContext } from "@/lib/workspace";
 import { todayKey, isValidDateKey } from "@/lib/date";
+import { createRoutineSchema, updateRoutineSchema } from "@/lib/validation/routines";
 import type { ActionResult } from "@/lib/actions/tasks";
+import type { RoutineRow } from "@/lib/supabase/types";
 
-const createRoutineSchema = z.object({
-  name: z.string().trim().min(1, "Dê um nome à rotina.").max(200),
-  description: z.string().trim().max(500).nullable().optional(),
-  cadence: z.enum(["daily", "weekdays", "weekly", "custom"]).default("daily"),
-});
+/** Os dias marcados chegam do formulário como vários campos de mesmo nome. */
+function readActiveDays(formData: FormData): number[] {
+  return formData
+    .getAll("activeDays")
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value >= 0 && value <= 6);
+}
 
 export async function createRoutine(formData: FormData): Promise<ActionResult> {
   const parsed = createRoutineSchema.safeParse({
     name: formData.get("name"),
     description: formData.get("description") || null,
     cadence: formData.get("cadence") || undefined,
+    activeDays: readActiveDays(formData),
+    shift: formData.get("shift") || null,
+    link: formData.get("link") || null,
   });
 
   if (!parsed.success) {
@@ -33,11 +39,50 @@ export async function createRoutine(formData: FormData): Promise<ActionResult> {
     name: parsed.data.name,
     description: parsed.data.description ?? null,
     cadence: parsed.data.cadence,
+    // Só "personalizada" usa a lista. Gravar dias numa rotina diária deixaria um
+    // valor mentiroso na coluna, esperando alguém mudar a cadência e se
+    // surpreender com dias que nunca escolheu.
+    active_days: parsed.data.cadence === "custom" ? (parsed.data.activeDays ?? null) : null,
+    shift: parsed.data.shift ?? null,
+    link: parsed.data.link,
   });
 
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath("/rotinas");
+  revalidate();
+  return { ok: true };
+}
+
+export async function updateRoutine(routineId: string, input: unknown): Promise<ActionResult> {
+  const parsed = updateRoutineSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  await requireContext();
+  const supabase = await createClient();
+
+  // `Partial<RoutineRow>` e não `Record<string, unknown>`, como no `updateTask`:
+  // nome de coluna errado vira erro de compilação, não update vazio.
+  const patch: Partial<RoutineRow> = {};
+  const { data } = parsed;
+
+  if (data.name !== undefined) patch.name = data.name;
+  if (data.description !== undefined) patch.description = data.description;
+  if (data.shift !== undefined) patch.shift = data.shift;
+  if (data.link !== undefined) patch.link = data.link;
+
+  if (data.cadence !== undefined) {
+    patch.cadence = data.cadence;
+    patch.active_days = data.cadence === "custom" ? (data.activeDays ?? null) : null;
+  }
+
+  if (Object.keys(patch).length === 0) return { ok: true };
+
+  const { error } = await supabase.from("routines").update(patch).eq("id", routineId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidate();
   return { ok: true };
 }
 
@@ -73,7 +118,7 @@ export async function toggleRoutine(
 
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath("/rotinas");
+  revalidate();
   return { ok: true };
 }
 
@@ -88,6 +133,10 @@ export async function archiveRoutine(routineId: string): Promise<ActionResult> {
 
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath("/rotinas");
+  revalidate();
   return { ok: true };
+}
+
+function revalidate() {
+  revalidatePath("/rotinas");
 }

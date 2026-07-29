@@ -1,8 +1,10 @@
 # DudaPlan
 
-Software pessoal de controle de projetos, tarefas e rotinas, construído sobre Supabase.
+Software pessoal de controle de projetos, tarefas, rotinas e reuniões, construído sobre Supabase.
 
-Estado atual: **fatia 1** — login real, a tela "Hoje", rotinas diárias e projetos com tarefas. As reuniões com IA (gravação, transcrição, ata, plano de ação e fluxograma) entram na fatia 2; o código delas está no histórico do Git, no commit `f55a305`.
+Estado atual: **fatia 2** — login real, a tela "Hoje", rotinas com turno e link, projetos com tarefas, tudo editável, e a tela de reuniões com gravação ou anexo de áudio.
+
+A IA das reuniões (transcrição, ata, plano de ação e fluxograma) ainda não entrou: `src/lib/ai/` está no repositório mas nada o chama, e `OPENAI_API_KEY` continua opcional.
 
 ## Stack
 
@@ -19,13 +21,16 @@ O projeto **`dudaplan`** (`drhnfkfdnhxcqzyqbpgc`, região `sa-east-1`) já está
 
 Se precisar recriar do zero, aplique na ordem:
 
-| Arquivo | O que faz |
-| --- | --- |
-| `20260728000000_core_schema.sql` | as 25 tabelas e os invariantes que cabem em CHECK |
-| `20260728000001_business_invariants.sql` | os invariantes que dependem de outras linhas, via trigger |
-| `20260728000002_rls.sql` | RLS em todas as tabelas e privilégios da Data API |
-| `20260728000003_auth_bootstrap.sql` | cria perfil, workspace e associação no cadastro |
-| `20260728000004_security_advisor_fixes.sql` | correções apontadas pelos advisors |
+| Arquivo                                                   | O que faz                                                 |
+| --------------------------------------------------------- | --------------------------------------------------------- |
+| `20260728000000_core_schema.sql`                          | as 25 tabelas e os invariantes que cabem em CHECK         |
+| `20260728000001_business_invariants.sql`                  | os invariantes que dependem de outras linhas, via trigger |
+| `20260728000002_rls.sql`                                  | RLS em todas as tabelas e privilégios da Data API         |
+| `20260728000003_auth_bootstrap.sql`                       | cria perfil, workspace e associação no cadastro           |
+| `20260728000004_security_advisor_fixes.sql`               | correções apontadas pelos advisors                        |
+| `20260728000005_owner_delete_cascade.sql`                 | apagar a conta leva junto o workspace                     |
+| `20260728000006_project_problem_and_deadlines.sql`        | projeto ganha problema e os três prazos                   |
+| `20260729000000_routine_shift_link_and_meeting_notes.sql` | turno e link nas rotinas, anotações nas reuniões          |
 
 ### Falta só criar seu usuário
 
@@ -44,10 +49,10 @@ Precisa voltar uma linha com `role = 'owner'`. Se voltar vazio, **o RLS esconde 
 
 ### Onde achar URL e chave
 
-| Variável | Onde está no painel do Supabase |
-| --- | --- |
-| `SUPABASE_URL` | Project Settings > Data API |
-| `SUPABASE_PUBLISHABLE_KEY` | Project Settings > API Keys |
+| Variável                   | Onde está no painel do Supabase |
+| -------------------------- | ------------------------------- |
+| `SUPABASE_URL`             | Project Settings > Data API     |
+| `SUPABASE_PUBLISHABLE_KEY` | Project Settings > API Keys     |
 
 Use a chave **publicável** (nos projetos mais antigos ela aparece como "anon" — o app aceita as duas). **Nunca a `service_role`**: ela ignora o RLS e daria acesso total ao banco.
 
@@ -65,11 +70,11 @@ Acesse `http://localhost:6555` e entre com o usuário criado no painel.
 
 ### Scripts
 
-| Script | Descrição |
-| --- | --- |
-| `npm run dev` | servidor de desenvolvimento (Turbopack) |
-| `npm run build` | build de produção |
-| `npm run lint` / `npm run format` | lint e formatação |
+| Script                            | Descrição                               |
+| --------------------------------- | --------------------------------------- |
+| `npm run dev`                     | servidor de desenvolvimento (Turbopack) |
+| `npm run build`                   | build de produção                       |
+| `npm run lint` / `npm run format` | lint e formatação                       |
 
 ## Deploy com Docker / Coolify
 
@@ -80,16 +85,19 @@ SUPABASE_URL
 SUPABASE_PUBLISHABLE_KEY
 ```
 
-Todas as variáveis são de **runtime** — nenhuma precisa ser build arg, e trocar uma delas é reiniciar o container, não rebuildar. As demais têm padrão e podem ficar em branco; `OPENAI_API_KEY` só passa a ser necessária na fatia 2.
+Todas as variáveis são de **runtime** — nenhuma precisa ser build arg, e trocar uma delas é reiniciar o container, não rebuildar. As demais têm padrão e podem ficar em branco; `OPENAI_API_KEY` só passa a ser necessária quando a IA das reuniões entrar.
 
 Se esquecer uma das duas, o `docker compose` para na hora dizendo qual falta, e o entrypoint repete a checagem antes de o servidor subir — em vez de o container subir e morrer depois com um erro de validação no meio de um stack trace.
 
 Recomendado também preencher `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` (gere com `openssl rand -base64 32`). Sem uma chave estável o Next gera uma nova a cada build, e toda aba aberta passa a falhar com "Failed to find Server Action" depois de um redeploy.
 
 Configure também:
+
 - health check em `GET /api/health`;
-- domínio com TLS (necessário para a gravação de áudio da fatia 2, que exige HTTPS);
-- um volume persistente em `/app/data`, também para a fatia 2.
+- domínio com TLS — o navegador só libera o microfone em HTTPS ou `localhost`, então sem ele a reunião só aceita áudio anexado;
+- um volume persistente em `/app/data`, que é onde os áudios ficam. Sem ele, cada redeploy apaga as gravações.
+
+`MAX_UPLOAD_MB` (padrão 200) limita o tamanho do áudio. O upload não passa por Server Action — o limite de corpo delas é 1 MB — e sim pela rota `POST /api/meetings/[meetingId]/audio`, que grava em streaming direto no volume. Essa rota fica **fora** do matcher de `src/proxy.ts` de propósito: com o proxy no caminho, o Next bufferiza o corpo em memória com teto de 10 MB e trunca em silêncio o que passar disso. A checagem de sessão é feita dentro da própria rota, e o RLS continua valendo.
 
 ### Rodando atrás do domínio do Coolify
 
@@ -110,9 +118,9 @@ O app já tem a rota `/auth/callback`, que troca o código do link por uma sess�
 
 Falta configurar o painel, em **Authentication > URL Configuration**:
 
-| Campo | Valor |
-| --- | --- |
-| Site URL | `https://seu-dominio` |
+| Campo         | Valor                               |
+| ------------- | ----------------------------------- |
+| Site URL      | `https://seu-dominio`               |
 | Redirect URLs | `https://seu-dominio/auth/callback` |
 
 O padrão é `http://localhost:3000`, e é de lá que vem o link apontando para localhost. O app manda o `emailRedirectTo` certo por conta própria, montado a partir do domínio de onde o cadastro partiu — mas **o Supabase só respeita esse valor se ele estiver na lista de Redirect URLs**; fora dela, ele volta a usar o Site URL. Por isso os dois campos precisam ser preenchidos.
@@ -127,7 +135,7 @@ Não há mais serviço de banco no compose, nem migration rodando no start do co
 
 ### Backup
 
-O banco fica no Supabase, que tem backup próprio no painel (Database > Backups). O volume `/app/data` guarda os áudios das reuniões:
+O banco fica no Supabase, que tem backup próprio no painel (Database > Backups). O volume `/app/data` guarda os áudios das reuniões — ele **não** está no backup do Supabase:
 
 ```bash
 docker run --rm -v dudaplan_uploads:/data -v "$PWD":/backup alpine tar czf /backup/uploads.tar.gz -C /data .
@@ -143,10 +151,11 @@ docker run --rm -v dudaplan_uploads:/data -v "$PWD":/backup alpine tar czf /back
 src/
   app/            rotas (App Router)
   components/     UI base (design system) e layout (sidebar, shell)
-  features/       componentes client por domínio (hoje, rotinas, projetos)
+  features/       componentes client por domínio (hoje, rotinas, projetos, tarefas, reuniões)
   lib/
     actions/      Server Actions (mutações)
-    ai/           cliente OpenAI, prompts e schemas — usados na fatia 2
+    ai/           cliente OpenAI, prompts e schemas — ainda sem uso
+    storage/      gravação do áudio das reuniões em disco
     data/         consultas usadas pelos Server Components
     supabase/     clientes (server, middleware) e tipos do banco
     validation/   schemas Zod de cada feature

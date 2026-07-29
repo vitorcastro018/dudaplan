@@ -12,6 +12,8 @@ export type TaskEnergy = "low" | "medium" | "high";
 export type TaskSource = "manual" | "meeting" | "ai" | "inbox" | "recurring";
 export type ProjectStatus = "planning" | "active" | "on_hold" | "done" | "cancelled";
 export type RoutineCadence = "daily" | "weekdays" | "weekly" | "custom";
+export type RoutineShift = "morning" | "afternoon" | "night";
+export type MeetingStatus = "scheduled" | "recording" | "processing" | "ready" | "failed";
 
 export type TaskRow = {
   id: string;
@@ -39,7 +41,7 @@ export type TaskRow = {
   archived_at: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
 export type ProjectRow = {
   id: string;
@@ -68,7 +70,7 @@ export type ProjectRow = {
   archived_at: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
 export type RoutineRow = {
   id: string;
@@ -80,11 +82,15 @@ export type RoutineRow = {
   cadence: RoutineCadence;
   active_days: number[] | null;
   target_time: string | null;
+  /** Endereço que a rotina abre. Só `http`/`https` — ver validation/routines.ts. */
+  link: string | null;
+  /** Turno do dia. Nulo é caso normal: rotina sem hora marcada. */
+  shift: RoutineShift | null;
   position: number;
   archived_at: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
 export type RoutineLogRow = {
   id: string;
@@ -94,7 +100,51 @@ export type RoutineLogRow = {
   skipped: boolean;
   note: string | null;
   created_at: string;
-}
+};
+
+export type MeetingRow = {
+  id: string;
+  workspace_id: string;
+  project_id: string | null;
+  series_id: string | null;
+  title: string;
+  objective: string | null;
+  agenda: unknown | null;
+  /** Anotações em texto livre, renderizadas como Markdown na tela. */
+  notes: string | null;
+  scheduled_at: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  duration_sec: number | null;
+  status: MeetingStatus;
+  processing_error: string | null;
+  created_by: string | null;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MeetingParticipantRow = {
+  id: string;
+  meeting_id: string;
+  user_id: string | null;
+  /** Nome de quem não tem conta no workspace — o caso normal por enquanto. */
+  external_name: string | null;
+  speaker_label: string | null;
+  role: "organizer" | "required" | "optional" | null;
+  attended: boolean | null;
+};
+
+export type RecordingRow = {
+  id: string;
+  meeting_id: string;
+  /** Caminho relativo a UPLOAD_DIR — ver src/lib/storage/audio.ts. */
+  storage_path: string;
+  mime_type: string;
+  size_bytes: number | null;
+  duration_sec: number | null;
+  created_at: string;
+};
 
 export type WorkspaceRow = {
   id: string;
@@ -102,7 +152,7 @@ export type WorkspaceRow = {
   owner_id: string;
   created_at: string;
   updated_at: string;
-}
+};
 
 export type MembershipRow = {
   id: string;
@@ -110,7 +160,7 @@ export type MembershipRow = {
   user_id: string;
   role: "owner" | "admin" | "member" | "guest";
   created_at: string;
-}
+};
 
 export type UserRow = {
   id: string;
@@ -122,7 +172,7 @@ export type UserRow = {
   work_end: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
 type Table<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
   Row: Row;
@@ -165,6 +215,21 @@ export interface Database {
         RoutineLogRow,
         Pick<RoutineLogRow, "routine_id" | "log_date"> & Partial<RoutineLogRow>,
         Partial<RoutineLogRow>
+      >;
+      meetings: Table<
+        MeetingRow,
+        Pick<MeetingRow, "workspace_id" | "title"> & Partial<MeetingRow>,
+        Partial<MeetingRow>
+      >;
+      meeting_participants: Table<
+        MeetingParticipantRow,
+        Pick<MeetingParticipantRow, "meeting_id"> & Partial<MeetingParticipantRow>,
+        Partial<MeetingParticipantRow>
+      >;
+      recordings: Table<
+        RecordingRow,
+        Pick<RecordingRow, "meeting_id" | "storage_path" | "mime_type"> & Partial<RecordingRow>,
+        Partial<RecordingRow>
       >;
       workspaces: Table<WorkspaceRow, Pick<WorkspaceRow, "name" | "owner_id">>;
       memberships: Table<MembershipRow, Pick<MembershipRow, "workspace_id" | "user_id">>;

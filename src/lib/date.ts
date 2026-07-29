@@ -96,6 +96,63 @@ export function dayRangeUtc(dateKey: string): { start: string; end: string } {
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
+/**
+ * `<input type="datetime-local">` -> ISO em UTC, lendo o valor no APP_TIMEZONE.
+ *
+ * O campo devolve um relógio sem fuso ("2026-08-03T14:30"). Gravar isso direto
+ * numa coluna `timestamptz` faz o Postgres interpretá-lo no fuso do servidor —
+ * UTC, no Supabase —, e a reunião marcada para as 14h em São Paulo passa a ser
+ * exibida às 11h. Aqui o horário é sempre lido no fuso do app.
+ *
+ * As duas passadas são as mesmas do `dayRangeUtc`: a primeira usa o
+ * deslocamento no instante errado, a segunda corrige com o já aproximado. Sem
+ * isso, um horário na virada do horário de verão erraria em uma hora.
+ */
+export function localDateTimeToUtcIso(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
+  if (!match) throw new Error(`Data/hora inválida: "${value}" (esperado AAAA-MM-DDTHH:MM).`);
+
+  const [, year, month, day, hour, minute] = match.map(Number);
+  const asUtc = Date.UTC(year, month - 1, day, hour, minute);
+
+  let instant = new Date(asUtc - offsetMs(new Date(asUtc), TIME_ZONE));
+  instant = new Date(asUtc - offsetMs(instant, TIME_ZONE));
+
+  return instant.toISOString();
+}
+
+/** O caminho de volta: ISO em UTC -> "AAAA-MM-DDTHH:MM" no APP_TIMEZONE. */
+export function utcIsoToLocalDateTimeInput(iso: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: TIME_ZONE,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(new Date(iso));
+
+  const part = (type: string) => parts.find((entry) => entry.type === type)?.value ?? "";
+  // Um relógio de 24h formata a meia-noite como "24" em algumas plataformas.
+  const hour = String(Number(part("hour")) % 24).padStart(2, "0");
+
+  return `${part("year")}-${part("month")}-${part("day")}T${hour}:${part("minute")}`;
+}
+
+/** Data e hora por extenso, no fuso do app. Para exibir `scheduled_at`. */
+export function formatDateTimeLabel(iso: string): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: TIME_ZONE,
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(iso));
+}
+
 export function isValidDateKey(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }

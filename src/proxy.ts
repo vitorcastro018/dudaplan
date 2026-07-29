@@ -6,8 +6,22 @@ export const config = {
   // `auth/callback` fica de fora: é justamente onde a sessão passa a existir.
   // Protegê-la mandaria de volta para /login quem chegou pelo link do e-mail,
   // antes de o código virar sessão — um laço fechado.
+  //
+  // `api/meetings` fica de fora por outro motivo: é por onde sobe o áudio das
+  // reuniões. Quando o proxy roda, o Next clona e bufferiza o corpo da
+  // requisição em memória, com teto padrão de 10 MB, e acima disso **trunca em
+  // silêncio** — a requisição não falha, só chega pela metade, e um m4a de
+  // 30 MB viraria um arquivo corrompido sem uma linha de erro. Subir
+  // `experimental.proxyClientMaxBodySize` até `MAX_UPLOAD_MB` resolveria o
+  // truncamento à custa de segurar 200 MB na memória, o que também anularia a
+  // gravação em streaming de `saveMeetingAudio`.
+  //
+  // Nada de autorização se perde: a rota chama `getCurrentUser()` por conta
+  // própria e o RLS continua valendo. O que ela deixa de fazer é renovar o
+  // cookie de sessão nessa requisição — inócuo, já que qualquer navegação
+  // seguinte renova.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|mark.svg|login|auth/callback|api/health).*)",
+    "/((?!_next/static|_next/image|favicon.ico|mark.svg|login|auth/callback|api/health|api/meetings).*)",
   ],
 };
 
