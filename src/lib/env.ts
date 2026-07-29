@@ -24,7 +24,10 @@ const envSchema = z
     SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
     SUPABASE_ANON_KEY: z.string().min(1).optional(),
     APP_TIMEZONE: z.string().default("America/Sao_Paulo"),
-    OPENAI_API_KEY: z.string().min(1),
+    // Opcional enquanto as reuniões estiverem fora (fatia 1). Exigir uma chave
+    // que nada usa só criaria um motivo a mais para o container não subir.
+    // Volta a ser obrigatória quando o pipeline de IA voltar.
+    OPENAI_API_KEY: z.string().min(1).optional(),
     OPENAI_TRANSCRIBE_MODEL: z.string().default("gpt-4o-transcribe"),
     OPENAI_ANALYSIS_MODEL: z.string().default("gpt-4o-mini"),
     UPLOAD_DIR: z.string().default("./data/uploads"),
@@ -57,7 +60,6 @@ const isBuildPhase = process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
 const buildPlaceholders = {
   SUPABASE_URL: "https://placeholder.supabase.co",
   SUPABASE_PUBLISHABLE_KEY: "placeholder",
-  OPENAI_API_KEY: "sk-placeholder",
 };
 
 // Uma plataforma de deploy entrega string vazia para uma variável registrada mas

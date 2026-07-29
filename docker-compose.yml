@@ -14,9 +14,14 @@ services:
       NODE_ENV: production
       PORT: 6555
       APP_TIMEZONE: ${APP_TIMEZONE:-America/Sao_Paulo}
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      # `:?` faz o `docker compose` parar na hora, dizendo qual variável falta,
+      # em vez de subir um container que morre depois com erro de validação.
+      # Nenhum valor fica gravado aqui: os dois vêm das variáveis de ambiente
+      # configuradas no Coolify (ou do .env local, em desenvolvimento).
+      SUPABASE_URL: ${SUPABASE_URL:?defina SUPABASE_URL (Project Settings > Data API no painel do Supabase)}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?defina SUPABASE_PUBLISHABLE_KEY (Project Settings > API Keys — use a publicavel, NUNCA a service_role)}
+      # Opcional na fatia 1: nada usa OpenAI enquanto as reuniões estiverem fora.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_TRANSCRIBE_MODEL: ${OPENAI_TRANSCRIBE_MODEL:-gpt-4o-transcribe}
       OPENAI_ANALYSIS_MODEL: ${OPENAI_ANALYSIS_MODEL:-gpt-4o-mini}
       UPLOAD_DIR: ${UPLOAD_DIR:-/app/data/uploads}

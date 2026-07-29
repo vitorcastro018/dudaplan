@@ -44,7 +44,14 @@ Precisa voltar uma linha com `role = 'owner'`. Se voltar vazio, **o RLS esconde 
 
 ### Onde achar URL e chave
 
-**Project Settings > API Keys**. A URL fica em **Project Settings > Data API**. As duas já estão no `.env` local deste repositório (que não vai para o Git).
+| Variável | Onde está no painel do Supabase |
+| --- | --- |
+| `SUPABASE_URL` | Project Settings > Data API |
+| `SUPABASE_PUBLISHABLE_KEY` | Project Settings > API Keys |
+
+Use a chave **publicável** (nos projetos mais antigos ela aparece como "anon" — o app aceita as duas). **Nunca a `service_role`**: ela ignora o RLS e daria acesso total ao banco.
+
+Nenhum valor fica gravado no repositório. Em produção eles vêm das variáveis de ambiente do Coolify; localmente, do `.env` (que o `.gitignore` cobre).
 
 ## Desenvolvimento local
 
@@ -66,13 +73,23 @@ Acesse `http://localhost:6555` e entre com o usuário criado no painel.
 
 ## Deploy com Docker / Coolify
 
-1. Preencha `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` e `OPENAI_API_KEY`.
-2. `docker compose up -d --build`.
-3. No Coolify, crie um recurso apontando para este repositório usando o `docker-compose.yml` e configure:
-   - as variáveis de ambiente do `.env.example` — todas de **runtime**, nenhuma precisa ser build arg;
-   - health check em `GET /api/health`;
-   - domínio com TLS (necessário para a gravação de áudio da fatia 2, que exige HTTPS);
-   - um volume persistente em `/app/data`, também para a fatia 2.
+No Coolify, crie um recurso apontando para este repositório usando o `docker-compose.yml` e preencha, em **Environment Variables**, só estas duas:
+
+```
+SUPABASE_URL
+SUPABASE_PUBLISHABLE_KEY
+```
+
+Todas as variáveis são de **runtime** — nenhuma precisa ser build arg, e trocar uma delas é reiniciar o container, não rebuildar. As demais têm padrão e podem ficar em branco; `OPENAI_API_KEY` só passa a ser necessária na fatia 2.
+
+Se esquecer uma das duas, o `docker compose` para na hora dizendo qual falta, e o entrypoint repete a checagem antes de o servidor subir — em vez de o container subir e morrer depois com um erro de validação no meio de um stack trace.
+
+Configure também:
+- health check em `GET /api/health`;
+- domínio com TLS (necessário para a gravação de áudio da fatia 2, que exige HTTPS);
+- um volume persistente em `/app/data`, também para a fatia 2.
+
+Para rodar local: `cp .env.example .env`, preencha as duas, e `docker compose up -d --build`.
 
 Não há mais serviço de banco no compose, nem migration rodando no start do container: o schema vive no Supabase e é aplicado por fora. Um redeploy do app não toca no banco.
 
