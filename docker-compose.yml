@@ -35,6 +35,11 @@ services:
       OPENAI_ANALYSIS_MODEL: ${OPENAI_ANALYSIS_MODEL:-gpt-4o-mini}
       UPLOAD_DIR: ${UPLOAD_DIR:-/app/data/uploads}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-200}
+    # `expose` além de `ports`: o Coolify descobre por aqui para qual porta
+    # rotear o domínio. Só com `ports`, publicar na porta do host ainda pode
+    # colidir com outro serviço na mesma máquina.
+    expose:
+      - "6555"
     ports:
       - "6555:6555"
     # O banco agora é o Supabase, então não há serviço `db` nem volume de dados
