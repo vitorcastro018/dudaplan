@@ -102,7 +102,20 @@ O proxy do Coolify termina o TLS e fala HTTP com o container. Duas consequência
 
 A tela de login tem duas abas: **Entrar** e **Criar conta**. Dá para criar o primeiro usuário direto por ali, sem passar pelo painel do Supabase — o trigger de cadastro monta perfil, workspace e associação automaticamente.
 
-Se a confirmação por e-mail estiver ligada no projeto, o cadastro avisa que é preciso confirmar pelo link. Como o SMTP padrão do Supabase só entrega para membros do projeto, o mais prático é desligar a confirmação em **Authentication > Providers > Email**.
+**Para um app pessoal, o mais simples é desligar a confirmação por e-mail** em **Authentication > Providers > Email**. Aí o cadastro já entra direto, e o SMTP (que no plano grátis só entrega para membros do projeto) deixa de importar.
+
+#### Se quiser manter a confirmação por e-mail
+
+O app já tem a rota `/auth/callback`, que troca o código do link por uma sessão — sem ela o link "funciona" (o Supabase marca o e-mail como confirmado) mas você volta ao app deslogado, sem explicação.
+
+Falta configurar o painel, em **Authentication > URL Configuration**:
+
+| Campo | Valor |
+| --- | --- |
+| Site URL | `https://seu-dominio` |
+| Redirect URLs | `https://seu-dominio/auth/callback` |
+
+O padrão é `http://localhost:3000`, e é de lá que vem o link apontando para localhost. O app manda o `emailRedirectTo` certo por conta própria, montado a partir do domínio de onde o cadastro partiu — mas **o Supabase só respeita esse valor se ele estiver na lista de Redirect URLs**; fora dela, ele volta a usar o Site URL. Por isso os dois campos precisam ser preenchidos.
 
 Com o app num domínio público, cadastro aberto significa que qualquer pessoa que descubra a URL cria uma conta. Não vaza dado — o RLS dá a cada conta o seu próprio workspace, e o isolamento está coberto pelos testes em `supabase/tests/` — mas enche o projeto de contas que você não convidou. Para evitar, preencha `APP_SIGNUP_CODE`: a aba de cadastro passa a pedir esse código.
 

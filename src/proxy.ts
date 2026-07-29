@@ -1,45 +1,26 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import { resolvePublicOrigin } from "@/lib/public-url";
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|mark.svg|login|api/health).*)"],
+  // `auth/callback` fica de fora: é justamente onde a sessão passa a existir.
+  // Protegê-la mandaria de volta para /login quem chegou pelo link do e-mail,
+  // antes de o código virar sessão — um laço fechado.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|mark.svg|login|auth/callback|api/health).*)",
+  ],
 };
 
-/**
- * Origem pública do app, vista pelo navegador.
- *
- * Atrás do proxy do Coolify o container é alcançado em 0.0.0.0:6555, e o
- * domínio existe só nos cabeçalhos. `request.nextUrl` e `request.url` refletem
- * o endereço de bind, não o domínio — verificado enviando Host e
- * X-Forwarded-Host do domínio público: o redirect saía para
- * http://127.0.0.1:6555/login de qualquer jeito, e o navegador batia num
- * endereço interno que não existe para ele.
- *
- * Location relativo resolveria isso sozinho, mas a camada de proxy do Next
- * parseia o cabeçalho como URL absoluta e responde 500 (ERR_INVALID_URL).
- * Então a origem é remontada aqui.
- *
- * Sobre confiar nesses cabeçalhos: quem fala direto com o container pode
- * forjá-los, e o pior caso é redirecionar a si mesmo para outro host. Quando
- * APP_ALLOWED_ORIGINS está definida, o host precisa estar nela; sem ela,
- * aceita-se o que o proxy mandou, que é o comportamento necessário para
- * funcionar sem configuração extra.
- */
+// Location relativo resolveria o problema do domínio sozinho, mas a camada de
+// proxy do Next parseia o cabeçalho como URL absoluta e responde 500
+// (ERR_INVALID_URL). Por isso a origem é remontada dos cabeçalhos.
 function publicOrigin(request: NextRequest): string {
-  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  if (!host) return request.nextUrl.origin;
-
-  const allowed = (process.env.APP_ALLOWED_ORIGINS ?? "")
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-
-  if (allowed.length > 0 && !allowed.includes(host)) {
-    return request.nextUrl.origin;
-  }
-
-  const proto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
-  return `${proto}://${host}`;
+  return resolvePublicOrigin(
+    request.headers.get("host"),
+    request.headers.get("x-forwarded-host"),
+    request.headers.get("x-forwarded-proto"),
+    request.nextUrl.origin,
+  );
 }
 
 export async function proxy(request: NextRequest) {

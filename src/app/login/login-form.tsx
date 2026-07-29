@@ -31,6 +31,12 @@ export function LoginForm({ requiresCode }: { requiresCode: boolean }) {
 
   const state = mode === "entrar" ? loginState : signupState;
 
+  // Erro vindo de /auth/callback (link expirado, já usado, código inválido).
+  // Some assim que a pessoa envia o formulário, para não ficar contradizendo o
+  // resultado da tentativa nova.
+  const [callbackError, setCallbackError] = React.useState(searchParams.get("erro"));
+  const visibleError = state.error ?? callbackError;
+
   return (
     <Card>
       <CardContent className="flex flex-col gap-5">
@@ -42,6 +48,7 @@ export function LoginForm({ requiresCode }: { requiresCode: boolean }) {
         <form
           key={mode}
           action={mode === "entrar" ? loginAction : signupAction}
+          onSubmit={() => setCallbackError(null)}
           className="flex flex-col gap-4"
         >
           <input type="hidden" name="next" value={searchParams.get("next") ?? "/hoje"} />
@@ -87,7 +94,7 @@ export function LoginForm({ requiresCode }: { requiresCode: boolean }) {
             </div>
           )}
 
-          {state.error && <p className="text-danger text-sm">{state.error}</p>}
+          {visibleError && <p className="text-danger text-sm">{visibleError}</p>}
           {state.message && (
             <p className="border-line bg-paper-sunk text-ink-2 rounded-[var(--radius-sm)] border p-3 text-sm">
               {state.message}

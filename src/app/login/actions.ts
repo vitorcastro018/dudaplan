@@ -1,7 +1,9 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { resolvePublicOrigin } from "@/lib/public-url";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { env } from "@/lib/env";
@@ -76,11 +78,28 @@ export async function signup(_prev: LoginState, formData: FormData): Promise<Log
     return { error: "Código de convite inválido." };
   }
 
+  // Sem `emailRedirectTo`, o Supabase usa o "Site URL" do projeto, que vem
+  // configurado como http://localhost:3000 — e o link do e-mail devolve a
+  // pessoa para uma porta local que não existe. Informando a origem real, o
+  // link volta para o domínio de onde o cadastro partiu, seja produção ou
+  // desenvolvimento, sem depender de o painel estar certo.
+  const headerList = await headers();
+  const origin = resolvePublicOrigin(
+    headerList.get("host"),
+    headerList.get("x-forwarded-host"),
+    headerList.get("x-forwarded-proto"),
+    "",
+  );
+
+  const emailRedirectTo = origin
+    ? `${origin}/auth/callback?next=${encodeURIComponent(parsed.data.next)}`
+    : undefined;
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
-    options: { data: { name: parsed.data.name } },
+    options: { data: { name: parsed.data.name }, emailRedirectTo },
   });
 
   if (error) {
