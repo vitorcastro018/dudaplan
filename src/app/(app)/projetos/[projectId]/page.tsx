@@ -17,17 +17,21 @@ export const dynamic = "force-dynamic";
 export default async function ProjectPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params;
 
+  // Tudo numa tacada só, em vez de buscar o projeto e só então as listas: as
+  // listas usam o `projectId` da URL, não o resultado de `getProject`, então
+  // encadeá-las só somava um round-trip inteiro ao banco — caro quando o banco
+  // está longe. Se o projeto não existe, o `notFound()` abaixo descarta o resto.
+  //
   // O RLS já devolve null para projeto de outro workspace, então "não achou" e
-  // "não é seu" chegam aqui do mesmo jeito — que é exatamente o que se quer:
-  // um 404 não revela que o recurso existe em outra conta.
-  const project = await getProject(projectId);
-  if (!project) notFound();
-
-  const [tasks, meetings, projects] = await Promise.all([
-    listProjectTasks(project.id),
-    listProjectMeetings(project.id),
+  // "não é seu" chegam do mesmo jeito — um 404 não revela que o recurso existe
+  // em outra conta.
+  const [project, tasks, meetings, projects] = await Promise.all([
+    getProject(projectId),
+    listProjectTasks(projectId),
+    listProjectMeetings(projectId),
     listProjectOptions(),
   ]);
+  if (!project) notFound();
 
   // Sugestão de data/hora calculada no servidor, para respeitar o APP_TIMEZONE
   // em vez do fuso do navegador — igual à tela /reunioes.
