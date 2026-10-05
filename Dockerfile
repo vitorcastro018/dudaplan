@@ -30,9 +30,7 @@ RUN apt-get update \
     && useradd -u 1001 -g nodejs -m nextjs
 
 # Só a saída standalone: o Next traça sozinho os módulos que o servidor
-# realmente importa. Sem Prisma, some junto o estágio que instalava a CLI, o
-# schema copiado para o runtime e o passo que baixava a engine — que era a
-# origem do loop de restart com "Can't write to /app/node_modules/@prisma/engines".
+# realmente importa.
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/static ./.next/static
