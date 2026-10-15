@@ -39,9 +39,9 @@ saída — cada bloco diz no `\echo` o que deve acontecer.
 
 | Arquivo | Cobertura |
 |---|---|
-| `01_isolamento.sql` | cadastro via trigger, leitura cruzada entre workspaces, `WITH CHECK` no UPDATE (reatribuir a linha para outro workspace), visibilidade de colegas, entrada e saída de membro |
-| `02_tabelas_filhas.sql` | tabelas que herdam o workspace pelo pai (`transcripts`, `transcript_segments` a dois níveis, `routine_logs`, `milestones`), inserção com ID estrangeiro explícito, as duas pontas de `task_dependencies`/`task_tags`, e `anon` sem GRANT nenhum |
-| `03_invariantes.sql` | profundidade de subtarefa, `waiting` sem motivo, `done` sem `completed_at`, reunião `ready` sem transcrição/artefato, log de rotina duplicado e `completed` junto com `skipped` — tudo executado como `authenticated`, para confirmar que o RLS não esconde do trigger a linha que ele precisa enxergar para barrar |
+| `01_isolamento.sql` | cadastro via trigger, leitura cruzada entre usuários, `WITH CHECK` no UPDATE (passar a linha para outro usuário), perfil próprio |
+| `02_tabelas_filhas.sql` | tabelas que herdam a posse pelo pai (`meeting_participants`, `recordings`, `routine_logs`), inserção com ID estrangeiro explícito e `anon` sem GRANT nenhum |
+| `03_invariantes.sql` | profundidade de subtarefa, `waiting` sem motivo, `done` sem `completed_at`, log de rotina duplicado, `completed` junto com `skipped` e projeto sem problema/resultado — tudo executado como `authenticated` |
 
 ## Limitação conhecida
 

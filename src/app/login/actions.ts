@@ -72,7 +72,7 @@ export async function signup(_prev: LoginState, formData: FormData): Promise<Log
 
   // Trava opcional de cadastro. O app fica num domínio público, e sem isto
   // qualquer pessoa que descubra a URL cria uma conta. Não vaza dado — o RLS dá
-  // a cada conta o seu próprio workspace — mas enche o projeto de gente que você
+  // cada conta só enxerga o que é dela — mas enche o projeto de gente que você
   // não convidou. Definindo APP_SIGNUP_CODE, só quem tem o código entra.
   if (env.APP_SIGNUP_CODE && parsed.data.code !== env.APP_SIGNUP_CODE) {
     return { error: "Código de convite inválido." };

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireContext } from "@/lib/workspace";
+import { requireUser } from "@/lib/session";
 import { localDateTimeToUtcIso } from "@/lib/date";
 import { deleteMeetingAudioDir } from "@/lib/storage/audio";
 import { createMeetingSchema, updateMeetingSchema } from "@/lib/validation/meetings";
@@ -60,13 +60,13 @@ export async function createMeeting(formData: FormData): Promise<CreateMeetingRe
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const { workspaceId, userId } = await requireContext();
+  const userId = await requireUser();
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("meetings")
     .insert({
-      workspace_id: workspaceId,
+      user_id: userId,
       created_by: userId,
       title: parsed.data.title,
       project_id: parsed.data.projectId ?? null,
@@ -91,7 +91,7 @@ export async function updateMeeting(meetingId: string, input: unknown): Promise<
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  await requireContext();
+  await requireUser();
   const supabase = await createClient();
 
   // `Partial<MeetingRow>` e não `Record<string, unknown>`, como nas outras
@@ -132,7 +132,7 @@ export async function updateMeeting(meetingId: string, input: unknown): Promise<
  * chamada, cada reunião apagada deixaria um diretório órfão no volume.
  */
 export async function deleteMeeting(meetingId: string): Promise<ActionResult> {
-  await requireContext();
+  await requireUser();
   const supabase = await createClient();
 
   const { error } = await supabase.from("meetings").delete().eq("id", meetingId);

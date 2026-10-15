@@ -27,12 +27,6 @@ const envSchema = z
     // Se definida, a tela de cadastro passa a exigir este código. Deixe vazia
     // para cadastro aberto. Ver o comentário em src/app/login/actions.ts.
     APP_SIGNUP_CODE: z.string().min(1).optional(),
-    // Opcional enquanto as reuniões estiverem fora (fatia 1). Exigir uma chave
-    // que nada usa só criaria um motivo a mais para o container não subir.
-    // Volta a ser obrigatória quando o pipeline de IA voltar.
-    OPENAI_API_KEY: z.string().min(1).optional(),
-    OPENAI_TRANSCRIBE_MODEL: z.string().default("gpt-4o-transcribe"),
-    OPENAI_ANALYSIS_MODEL: z.string().default("gpt-4o-mini"),
     UPLOAD_DIR: z.string().default("./data/uploads"),
     MAX_UPLOAD_MB: z.coerce.number().default(200),
   })

@@ -1,5 +1,7 @@
 -- Stub do que o Supabase provê: schema auth, tabela auth.users e auth.uid().
 create schema if not exists auth;
+-- O Supabase tem um schema `extensions`; a migration 004 move o citext para lá.
+create schema if not exists extensions;
 create extension if not exists pgcrypto;
 create extension if not exists citext;
 

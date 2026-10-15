@@ -20,7 +20,7 @@ export default async function TarefasPage({
     <div>
       <PageHeader
         title="Tarefas"
-        description="Todas as tarefas do workspace. Cada uma pode pertencer a um projeto — ou ficar solta."
+        description="Todas as tarefas. Cada uma pode pertencer a um projeto — ou ficar solta."
       />
 
       <TasksBoard tasks={tasks} projects={projects} activeFilter={projeto ?? ""} />

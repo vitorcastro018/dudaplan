@@ -7,12 +7,11 @@ import type { MeetingRow, MeetingParticipantRow, RecordingRow } from "@/lib/supa
 // linha a partir do texto do `select`, e `"a" + "b"` colapsa para `string`,
 // levando o retorno a `GenericStringError` em vez das colunas pedidas.
 const MEETING_FIELDS =
-  "id, workspace_id, project_id, title, notes, scheduled_at, duration_sec, status, created_at, updated_at";
+  "id, project_id, title, notes, scheduled_at, duration_sec, status, created_at, updated_at";
 
 export type MeetingListItem = Pick<
   MeetingRow,
   | "id"
-  | "workspace_id"
   | "project_id"
   | "title"
   | "notes"
@@ -57,7 +56,7 @@ export interface MeetingDetail extends MeetingListItem {
  * `GenericStringError`. É o mesmo caminho que `getRoutineBoard` já toma, pelo
  * mesmo motivo — e o cruzamento por `Map` é barato numa lista dessa ordem.
  *
- * Sem filtro por workspace, de propósito: o RLS já restringe a leitura. Ver a
+ * Sem filtro por usuário, de propósito: o RLS já restringe a leitura. Ver a
  * nota em `src/lib/data/tasks.ts`.
  */
 export async function listMeetings(): Promise<MeetingSummary[]> {
@@ -82,7 +81,7 @@ export async function listMeetings(): Promise<MeetingSummary[]> {
  * `listProjectTasks` faz com as tarefas.
  *
  * Filtra por `project_id` na consulta, e não em memória depois de trazer tudo:
- * a nota em `listTasks` vale igual aqui. O RLS continua cuidando do workspace.
+ * a nota em `listTasks` vale igual aqui. O RLS continua cuidando da posse.
  */
 export async function listProjectMeetings(projectId: string): Promise<MeetingSummary[]> {
   const supabase = await createClient();

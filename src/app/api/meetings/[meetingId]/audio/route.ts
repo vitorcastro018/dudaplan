@@ -56,7 +56,7 @@ function resolveExtension(file: File): string | null {
 }
 
 /** Sessão + reunião visível. O `select` já passa pelo RLS, então uma reunião de
- *  outro workspace volta como "não encontrada". */
+ *  outro usuário volta como "não encontrada". */
 async function requireMeeting(meetingId: string) {
   const claims = await getAuthClaims();
   if (!claims) return { error: unauthorized() as NextResponse };

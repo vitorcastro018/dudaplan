@@ -35,8 +35,8 @@ export async function createClient() {
   });
 }
 
-/** O essencial que a sessão precisa provar: quem é, e — para a mensagem de erro
- *  de "sem workspace" — qual o e-mail. */
+/** O essencial que a sessão precisa provar: quem é, e
+ *  o e-mail, que só serve para mensagens. */
 export interface AuthClaims {
   userId: string;
   email?: string;

@@ -2,7 +2,7 @@
 //
 // Normalmente isto sairia de `supabase gen types typescript`, mas a CLI precisa
 // alcançar o projeto e este ambiente não tem rede para o Supabase. Escrito à mão
-// a partir de `supabase/migrations/20260728000000_core_schema.sql` — se o schema
+// a partir das migrations em `supabase/migrations/` — se o schema
 // mudar, este arquivo muda junto, ou o `tsc` mente sobre o formato das linhas.
 // Assim que a CLI estiver disponível, gere e substitua.
 
@@ -17,9 +17,8 @@ export type MeetingStatus = "scheduled" | "recording" | "processing" | "ready" |
 
 export type TaskRow = {
   id: string;
-  workspace_id: string;
+  user_id: string;
   project_id: string | null;
-  milestone_id: string | null;
   parent_task_id: string | null;
   title: string;
   description: unknown | null;
@@ -35,7 +34,6 @@ export type TaskRow = {
   blocked_reason: string | null;
   source_type: TaskSource;
   source_meeting_id: string | null;
-  source_segment_id: string | null;
   position: number;
   completed_at: string | null;
   archived_at: string | null;
@@ -45,8 +43,7 @@ export type TaskRow = {
 
 export type ProjectRow = {
   id: string;
-  workspace_id: string;
-  area_id: string | null;
+  user_id: string;
   name: string;
   /** "por que este projeto existe" — obrigatório e não vazio. */
   problem: string;
@@ -74,9 +71,7 @@ export type ProjectRow = {
 
 export type RoutineRow = {
   id: string;
-  workspace_id: string;
   user_id: string;
-  area_id: string | null;
   name: string;
   description: string | null;
   cadence: RoutineCadence;
@@ -104,7 +99,7 @@ export type RoutineLogRow = {
 
 export type MeetingRow = {
   id: string;
-  workspace_id: string;
+  user_id: string;
   project_id: string | null;
   series_id: string | null;
   title: string;
@@ -128,7 +123,7 @@ export type MeetingParticipantRow = {
   id: string;
   meeting_id: string;
   user_id: string | null;
-  /** Nome de quem não tem conta no workspace — o caso normal por enquanto. */
+  /** Nome do participante, que normalmente não tem conta. */
   external_name: string | null;
   speaker_label: string | null;
   role: "organizer" | "required" | "optional" | null;
@@ -143,22 +138,6 @@ export type RecordingRow = {
   mime_type: string;
   size_bytes: number | null;
   duration_sec: number | null;
-  created_at: string;
-};
-
-export type WorkspaceRow = {
-  id: string;
-  name: string;
-  owner_id: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export type MembershipRow = {
-  id: string;
-  workspace_id: string;
-  user_id: string;
-  role: "owner" | "admin" | "member" | "guest";
   created_at: string;
 };
 
@@ -186,7 +165,7 @@ export interface Database {
     Tables: {
       tasks: Table<
         TaskRow,
-        Pick<TaskRow, "workspace_id" | "title"> & Partial<TaskRow>,
+        Pick<TaskRow, "user_id" | "title"> & Partial<TaskRow>,
         Partial<TaskRow>
       >;
       // As colunas NOT NULL sem default entram no Pick para que um insert que
@@ -195,7 +174,7 @@ export interface Database {
         ProjectRow,
         Pick<
           ProjectRow,
-          | "workspace_id"
+          | "user_id"
           | "name"
           | "problem"
           | "outcome"
@@ -208,7 +187,7 @@ export interface Database {
       >;
       routines: Table<
         RoutineRow,
-        Pick<RoutineRow, "workspace_id" | "user_id" | "name"> & Partial<RoutineRow>,
+        Pick<RoutineRow, "user_id" | "name"> & Partial<RoutineRow>,
         Partial<RoutineRow>
       >;
       routine_logs: Table<
@@ -218,7 +197,7 @@ export interface Database {
       >;
       meetings: Table<
         MeetingRow,
-        Pick<MeetingRow, "workspace_id" | "title"> & Partial<MeetingRow>,
+        Pick<MeetingRow, "user_id" | "title"> & Partial<MeetingRow>,
         Partial<MeetingRow>
       >;
       meeting_participants: Table<
@@ -231,8 +210,6 @@ export interface Database {
         Pick<RecordingRow, "meeting_id" | "storage_path" | "mime_type"> & Partial<RecordingRow>,
         Partial<RecordingRow>
       >;
-      workspaces: Table<WorkspaceRow, Pick<WorkspaceRow, "name" | "owner_id">>;
-      memberships: Table<MembershipRow, Pick<MembershipRow, "workspace_id" | "user_id">>;
       users: Table<UserRow, Pick<UserRow, "id" | "email" | "name">>;
     };
     // `{ [_ in never]: never }` e não `Record<string, never>`: o segundo diz

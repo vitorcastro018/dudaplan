@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireContext } from "@/lib/workspace";
+import { requireUser } from "@/lib/session";
 import { todayKey, isValidDateKey } from "@/lib/date";
 import { createRoutineSchema, updateRoutineSchema } from "@/lib/validation/routines";
 import type { ActionResult } from "@/lib/actions/tasks";
@@ -30,11 +30,10 @@ export async function createRoutine(formData: FormData): Promise<ActionResult> {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const { workspaceId, userId } = await requireContext();
+  const userId = await requireUser();
   const supabase = await createClient();
 
   const { error } = await supabase.from("routines").insert({
-    workspace_id: workspaceId,
     user_id: userId,
     name: parsed.data.name,
     description: parsed.data.description ?? null,
@@ -59,7 +58,7 @@ export async function updateRoutine(routineId: string, input: unknown): Promise<
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  await requireContext();
+  await requireUser();
   const supabase = await createClient();
 
   // `Partial<RoutineRow>` e não `Record<string, unknown>`, como no `updateTask`:
@@ -101,7 +100,7 @@ export async function toggleRoutine(
 ): Promise<ActionResult> {
   if (!isValidDateKey(date)) return { ok: false, error: "Data inválida." };
 
-  await requireContext();
+  await requireUser();
   const supabase = await createClient();
 
   const { error } = await supabase.from("routine_logs").upsert(
@@ -123,7 +122,7 @@ export async function toggleRoutine(
 }
 
 export async function archiveRoutine(routineId: string): Promise<ActionResult> {
-  await requireContext();
+  await requireUser();
   const supabase = await createClient();
 
   const { error } = await supabase

@@ -12,31 +12,17 @@
 -- 1. Zerar os dados, mantendo as contas
 -- ===========================================================================
 -- Você continua logado e continua existindo como usuário; perde projetos,
--- tarefas, rotinas, reuniões — e o workspace. Como o workspace some, você
--- ficaria sem associação e o app abriria vazio, então o bloco recria um.
---
--- TRUNCATE ... CASCADE em `workspaces` já derruba todas as tabelas que
--- dependem dela, que são todas menos users e memberships.
+-- tarefas, rotinas e reuniões. Não precisa recriar nada: a posse é direta
+-- (`user_id`), então o app abre vazio e pronto para uso.
 
-truncate table workspaces cascade;
-
-insert into workspaces (name, owner_id)
-select coalesce(nullif(btrim(u.name), ''), split_part(u.email, '@', 1)) || ' — DudaPlan', u.id
-from users u;
-
-insert into memberships (workspace_id, user_id, role)
-select w.id, w.owner_id, 'owner' from workspaces w;
+truncate table projects, tasks, meetings, routines cascade;
 
 
 -- ===========================================================================
 -- 2. Apagar UMA conta e tudo que é dela
 -- ===========================================================================
--- Troque o e-mail. Apagar em auth.users cascateia para public.users, daí para
--- o workspace e daí para todo o resto.
---
--- Isto só funciona a partir da migration 20260728000005: antes dela
--- `workspaces.owner_id` não tinha ON DELETE e o Postgres recusava com
--- "violates foreign key constraint workspaces_owner_id_fkey".
+-- Troque o e-mail. Apagar em auth.users cascateia para public.users e daí para
+-- tudo que tem `user_id` dela.
 
 -- delete from auth.users where email = 'troque@pelo-seu-email.com';
 
@@ -56,11 +42,9 @@ select w.id, w.owner_id, 'owner' from workspaces w;
 -- select
 --   (select count(*) from auth.users)   as contas,
 --   (select count(*) from users)        as perfis,
---   (select count(*) from workspaces)   as workspaces,
---   (select count(*) from memberships)  as associacoes,
 --   (select count(*) from tasks)        as tarefas,
 --   (select count(*) from projects)     as projetos,
 --   (select count(*) from routines)     as rotinas;
 --
--- Depois de qualquer um dos três, cada conta precisa ter exatamente uma
--- associação 'owner'. Sem ela o RLS esconde tudo e o app abre vazio.
+-- Depois do reset, `contas` e `perfis` devem ser iguais: o trigger de cadastro
+-- cria o perfil de cada conta.

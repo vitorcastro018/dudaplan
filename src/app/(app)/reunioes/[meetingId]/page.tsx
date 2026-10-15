@@ -17,7 +17,7 @@ export default async function MeetingPage({
 }) {
   const [{ meetingId }, { aba }] = await Promise.all([params, searchParams]);
 
-  // O RLS já devolve null para reunião de outro workspace, então "não achou" e
+  // O RLS já devolve null para reunião de outro usuário, então "não achou" e
   // "não é sua" chegam aqui do mesmo jeito — que é o que se quer: um 404 não
   // revela que o recurso existe em outra conta.
   const meeting = await getMeeting(meetingId);

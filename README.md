@@ -1,10 +1,10 @@
 # DudaPlan
 
-Software pessoal de controle de projetos, tarefas, rotinas e reuniões, construído sobre Supabase.
+Software pessoal, de uma pessoa só, para controle de projetos, tarefas, rotinas e reuniões, construído sobre Supabase.
 
 Estado atual: **fatia 2** — login real, a tela "Hoje", rotinas com turno e link, projetos com tarefas, tudo editável, e a tela de reuniões com gravação ou anexo de áudio.
 
-A IA das reuniões (transcrição, ata, plano de ação e fluxograma) ainda não entrou: `src/lib/ai/` está no repositório mas nada o chama, e `OPENAI_API_KEY` continua opcional.
+A IA das reuniões (transcrição, ata, plano de ação e fluxograma) ainda não entrou. O código que existia foi removido por não ser chamado por nada; ele continua no histórico do git, e quando a IA voltar será escrita de novo em cima do app como ele está.
 
 ## Stack
 
@@ -13,24 +13,25 @@ A IA das reuniões (transcrição, ata, plano de ação e fluxograma) ainda não
 - Tailwind CSS 4, `next/font` (Fraunces, Archivo, JetBrains Mono)
 - Docker / docker-compose, pronto para Coolify
 
-Todo acesso a dados acontece em Server Component ou Server Action. O navegador nunca recebe a chave do Supabase, e a autorização é feita pelo RLS no banco — não por checagem na aplicação.
+Todo acesso a dados acontece em Server Component ou Server Action. O navegador nunca recebe a chave do Supabase, e a autorização é feita pelo RLS no banco — não por checagem na aplicação. A regra é uma só: cada linha tem um `user_id` e você só enxerga e mexe no que é seu.
 
 ## Supabase
 
-O projeto **`dudaplan`** (`drhnfkfdnhxcqzyqbpgc`, região `sa-east-1`) já está criado e com o schema aplicado: 25 tabelas, RLS em todas elas, invariantes de negócio e o trigger de cadastro. As migrations em `supabase/migrations/` são o registro do que foi aplicado — rodá-las de novo num projeto novo reproduz o mesmo estado.
+O projeto **`dudaplan`** (`drhnfkfdnhxcqzyqbpgc`, região `sa-east-1`) já está criado e com o schema aplicado: 8 tabelas (`users`, `projects`, `tasks`, `routines`, `routine_logs`, `meetings`, `meeting_participants`, `recordings`), RLS em todas elas, invariantes de negócio e o trigger de cadastro. As migrations em `supabase/migrations/` são o registro do que foi aplicado — rodá-las de novo num projeto novo reproduz o mesmo estado.
 
 Se precisar recriar do zero, aplique na ordem:
 
 | Arquivo                                                   | O que faz                                                 |
 | --------------------------------------------------------- | --------------------------------------------------------- |
-| `20260728000000_core_schema.sql`                          | as 25 tabelas e os invariantes que cabem em CHECK         |
+| `20260728000000_core_schema.sql`                          | as tabelas originais e os invariantes que cabem em CHECK         |
 | `20260728000001_business_invariants.sql`                  | os invariantes que dependem de outras linhas, via trigger |
 | `20260728000002_rls.sql`                                  | RLS em todas as tabelas e privilégios da Data API         |
-| `20260728000003_auth_bootstrap.sql`                       | cria perfil, workspace e associação no cadastro           |
+| `20260728000003_auth_bootstrap.sql`                       | cria o perfil no cadastro                                 |
 | `20260728000004_security_advisor_fixes.sql`               | correções apontadas pelos advisors                        |
-| `20260728000005_owner_delete_cascade.sql`                 | apagar a conta leva junto o workspace                     |
+| `20260728000005_owner_delete_cascade.sql`                 | apagar a conta leva junto o conteúdo                    |
 | `20260728000006_project_problem_and_deadlines.sql`        | projeto ganha problema e os três prazos                   |
 | `20260729000000_routine_shift_link_and_meeting_notes.sql` | turno e link nas rotinas, anotações nas reuniões          |
+| `20260801000000_single_user.sql`                          | enxugamento: sai workspace/equipe e 17 tabelas sem uso, entra `user_id` |
 
 ### Falta só criar seu usuário
 
@@ -39,13 +40,10 @@ Em **Authentication > Users > Add user > Create new user**, com e-mail e senha, 
 Depois confirme que o bootstrap rodou:
 
 ```sql
-select u.email, w.name, m.role
-from public.users u
-join public.memberships m on m.user_id = u.id
-join public.workspaces w on w.id = m.workspace_id;
+select email, name from public.users;
 ```
 
-Precisa voltar uma linha com `role = 'owner'`. Se voltar vazio, **o RLS esconde tudo e o app abre vazio** — apague o usuário e recrie.
+Precisa voltar uma linha com o seu e-mail. Se voltar vazio, o trigger de cadastro não rodou — apague o usuário e recrie.
 
 ### Onde achar URL e chave
 
@@ -85,7 +83,7 @@ SUPABASE_URL
 SUPABASE_PUBLISHABLE_KEY
 ```
 
-Todas as variáveis são de **runtime** — nenhuma precisa ser build arg, e trocar uma delas é reiniciar o container, não rebuildar. As demais têm padrão e podem ficar em branco; `OPENAI_API_KEY` só passa a ser necessária quando a IA das reuniões entrar.
+Todas as variáveis são de **runtime** — nenhuma precisa ser build arg, e trocar uma delas é reiniciar o container, não rebuildar. As demais têm padrão e podem ficar em branco.
 
 Se esquecer uma das duas, o `docker compose` para na hora dizendo qual falta, e o entrypoint repete a checagem antes de o servidor subir — em vez de o container subir e morrer depois com um erro de validação no meio de um stack trace.
 
@@ -108,7 +106,7 @@ O proxy do Coolify termina o TLS e fala HTTP com o container. Duas consequência
 
 ### Criar conta
 
-A tela de login tem duas abas: **Entrar** e **Criar conta**. Dá para criar o primeiro usuário direto por ali, sem passar pelo painel do Supabase — o trigger de cadastro monta perfil, workspace e associação automaticamente.
+A tela de login tem duas abas: **Entrar** e **Criar conta**. Dá para criar o primeiro usuário direto por ali, sem passar pelo painel do Supabase — o trigger de cadastro cria o perfil automaticamente.
 
 **Para um app pessoal, o mais simples é desligar a confirmação por e-mail** em **Authentication > Providers > Email**. Aí o cadastro já entra direto, e o SMTP (que no plano grátis só entrega para membros do projeto) deixa de importar.
 
@@ -125,7 +123,7 @@ Falta configurar o painel, em **Authentication > URL Configuration**:
 
 O padrão é `http://localhost:3000`, e é de lá que vem o link apontando para localhost. O app manda o `emailRedirectTo` certo por conta própria, montado a partir do domínio de onde o cadastro partiu — mas **o Supabase só respeita esse valor se ele estiver na lista de Redirect URLs**; fora dela, ele volta a usar o Site URL. Por isso os dois campos precisam ser preenchidos.
 
-Com o app num domínio público, cadastro aberto significa que qualquer pessoa que descubra a URL cria uma conta. Não vaza dado — o RLS dá a cada conta o seu próprio workspace, e o isolamento está coberto pelos testes em `supabase/tests/` — mas enche o projeto de contas que você não convidou. Para evitar, preencha `APP_SIGNUP_CODE`: a aba de cadastro passa a pedir esse código.
+Com o app num domínio público, cadastro aberto significa que qualquer pessoa que descubra a URL cria uma conta. Não vaza dado — o RLS isola cada conta, e o isolamento está coberto pelos testes em `supabase/tests/` — mas enche o projeto de contas que você não convidou. Para evitar, preencha `APP_SIGNUP_CODE`: a aba de cadastro passa a pedir esse código.
 
 Para rodar local: `cp .env.example .env`, preencha as duas, e `docker compose up -d --build`.
 
@@ -143,7 +141,7 @@ docker run --rm -v dudaplan_uploads:/data -v "$PWD":/backup alpine tar czf /back
 
 ## Testes do banco
 
-`supabase/tests/` roda contra um Postgres local, sem precisar de projeto Supabase — cobre isolamento entre workspaces, as políticas de RLS e os invariantes de negócio. Veja `supabase/tests/README.md`, em especial por que os testes rodam como `authenticated` e não como dono do schema.
+`supabase/tests/` roda contra um Postgres local, sem precisar de projeto Supabase — cobre isolamento entre usuários, as políticas de RLS e os invariantes de negócio. Veja `supabase/tests/README.md`, em especial por que os testes rodam como `authenticated` e não como dono do schema.
 
 ## Estrutura do projeto
 
@@ -154,7 +152,6 @@ src/
   features/       componentes client por domínio (hoje, rotinas, projetos, tarefas, reuniões)
   lib/
     actions/      Server Actions (mutações)
-    ai/           cliente OpenAI, prompts e schemas — ainda sem uso
     storage/      gravação do áudio das reuniões em disco
     data/         consultas usadas pelos Server Components
     supabase/     clientes (server, middleware) e tipos do banco

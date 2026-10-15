@@ -12,12 +12,11 @@ const OPEN_STATUSES = ["backlog", "todo", "in_progress", "waiting"] as const;
 // linha a partir do texto do `select`, e `"a" + "b"` colapsa para `string`,
 // levando o retorno a `GenericStringError` em vez das colunas pedidas.
 const TASK_FIELDS =
-  "id, workspace_id, project_id, title, status, priority, energy, scheduled_date, due_date, blocked_reason, estimate_minutes, position, completed_at, created_at";
+  "id, project_id, title, status, priority, energy, scheduled_date, due_date, blocked_reason, estimate_minutes, position, completed_at, created_at";
 
 export type TaskListItem = Pick<
   TaskRow,
   | "id"
-  | "workspace_id"
   | "project_id"
   | "title"
   | "status"
@@ -42,8 +41,8 @@ export interface TodayBoard {
 /**
  * As três listas da tela "Hoje".
  *
- * Não filtro por workspace aqui de propósito: o RLS já restringe a leitura aos
- * workspaces do usuário. Repetir o filtro na query só esconderia uma política
+ * Não filtro por usuário aqui de propósito: o RLS já restringe a leitura aos
+ * dados do usuário. Repetir o filtro na query só esconderia uma política
  * quebrada — se algum dia o RLS falhar, quero ver o vazamento no teste, não um
  * filtro de aplicação disfarçando o problema.
  */
@@ -86,7 +85,7 @@ export async function getTodayBoard(): Promise<TodayBoard> {
 }
 
 /**
- * Todas as tarefas do workspace, para a tela /tarefas.
+ * Todas as tarefas, para a tela /tarefas.
  *
  * O filtro por projeto vai na consulta, e não numa passada em memória: a tela
  * cresce sem limite e trazer tudo para descartar quase tudo é desperdício que

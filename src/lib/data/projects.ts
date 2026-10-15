@@ -6,12 +6,11 @@ import type { ProjectRow, ProjectStatus } from "@/lib/supabase/types";
 // linha a partir do texto do `select`, e `"a" + "b"` colapsa para `string`,
 // levando o retorno a `GenericStringError` em vez das colunas pedidas.
 const PROJECT_FIELDS =
-  "id, workspace_id, name, problem, outcome, status, start_date, deadline_optimistic, deadline_mediocre, deadline_realistic, completed_at, position, created_at";
+  "id, name, problem, outcome, status, start_date, deadline_optimistic, deadline_mediocre, deadline_realistic, completed_at, position, created_at";
 
 export type ProjectListItem = Pick<
   ProjectRow,
   | "id"
-  | "workspace_id"
   | "name"
   | "problem"
   | "outcome"

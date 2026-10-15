@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireContext } from "@/lib/workspace";
+import { requireUser } from "@/lib/session";
 import { createTaskSchema, updateTaskSchema } from "@/lib/validation/tasks";
 import { shiftDateKey, todayKey } from "@/lib/date";
 import type { TaskRow, TaskStatus } from "@/lib/supabase/types";
@@ -47,11 +47,11 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const { workspaceId } = await requireContext();
+  const userId = await requireUser();
   const supabase = await createClient();
 
   const { error } = await supabase.from("tasks").insert({
-    workspace_id: workspaceId,
+    user_id: userId,
     title: parsed.data.title,
     project_id: parsed.data.projectId ?? null,
     status: parsed.data.status,
@@ -74,7 +74,7 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
  * status é 'done'. Mandar só o status faz o UPDATE ser recusado.
  */
 export async function setTaskDone(taskId: string, done: boolean): Promise<ActionResult> {
-  await requireContext();
+  await requireUser();
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -97,7 +97,7 @@ export async function updateTask(taskId: string, input: unknown): Promise<Action
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  await requireContext();
+  await requireUser();
   const supabase = await createClient();
 
   // `Partial<TaskRow>` e não `Record<string, unknown>`: o segundo passa
@@ -157,7 +157,7 @@ export async function setTaskProject(
 }
 
 export async function deleteTask(taskId: string): Promise<ActionResult> {
-  await requireContext();
+  await requireUser();
   const supabase = await createClient();
 
   const { error } = await supabase.from("tasks").delete().eq("id", taskId);

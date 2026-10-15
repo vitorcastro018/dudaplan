@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export default async function ProjectPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params;
 
-  // O RLS já devolve null para projeto de outro workspace, então "não achou" e
+  // O RLS já devolve null para projeto de outro usuário, então "não achou" e
   // "não é seu" chegam aqui do mesmo jeito — que é exatamente o que se quer:
   // um 404 não revela que o recurso existe em outra conta.
   const project = await getProject(projectId);

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { requireContext } from "@/lib/workspace";
+import { requireUser } from "@/lib/session";
 import { isValidDateKey } from "@/lib/date";
 import type { ActionResult } from "@/lib/actions/tasks";
 import type { ProjectRow } from "@/lib/supabase/types";
@@ -106,13 +106,13 @@ export async function createProject(formData: FormData): Promise<CreateProjectRe
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const { workspaceId, userId } = await requireContext();
+  const userId = await requireUser();
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("projects")
     .insert({
-      workspace_id: workspaceId,
+      user_id: userId,
       owner_id: userId,
       name: parsed.data.name,
       problem: parsed.data.problem,
@@ -124,7 +124,7 @@ export async function createProject(formData: FormData): Promise<CreateProjectRe
       deadline_realistic: parsed.data.deadlineRealistic,
     })
     // O `select` depois do insert volta pelo RLS de leitura, que o criador
-    // satisfaz — é o mesmo workspace que o `with check` acabou de aprovar.
+    // satisfaz — é o mesmo `user_id` que o `with check` acabou de aprovar.
     .select("id")
     .single();
 
@@ -140,7 +140,7 @@ export async function updateProject(projectId: string, input: unknown): Promise<
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  await requireContext();
+  await requireUser();
   const supabase = await createClient();
 
   // `Partial<ProjectRow>` e não `Record<string, unknown>`, pela mesma razão do
@@ -175,7 +175,7 @@ export async function updateProject(projectId: string, input: unknown): Promise<
 }
 
 export async function archiveProject(projectId: string): Promise<ActionResult> {
-  await requireContext();
+  await requireUser();
   const supabase = await createClient();
 
   const { error } = await supabase
