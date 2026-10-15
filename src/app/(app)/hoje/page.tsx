@@ -11,10 +11,7 @@ export default async function HojePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Hoje"
-        description={capitalize(formatDateKeyLabel(board.today))}
-      />
+      <PageHeader title="Hoje" description={capitalize(formatDateKeyLabel(board.today))} />
       <TodayBoard board={board} projects={projects} />
     </div>
   );

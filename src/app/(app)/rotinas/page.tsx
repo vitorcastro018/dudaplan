@@ -11,10 +11,7 @@ export default async function RotinasPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Rotinas"
-        description={label.charAt(0).toUpperCase() + label.slice(1)}
-      />
+      <PageHeader title="Rotinas" description={label.charAt(0).toUpperCase() + label.slice(1)} />
       <RoutineBoard board={board} />
     </div>
   );

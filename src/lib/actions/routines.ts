@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { query, updateOwned } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { todayKey, isValidDateKey } from "@/lib/date";
+import { errorMessage } from "@/lib/utils";
 import { createRoutineSchema, updateRoutineSchema } from "@/lib/validation/routines";
 import type { ActionResult } from "@/lib/actions/tasks";
-import type { RoutineRow } from "@/lib/supabase/types";
+import type { RoutineRow } from "@/lib/types";
 
 /** Os dias marcados chegam do formulário como vários campos de mesmo nome. */
 function readActiveDays(formData: FormData): number[] {
@@ -31,22 +32,27 @@ export async function createRoutine(formData: FormData): Promise<ActionResult> {
   }
 
   const userId = await requireUser();
-  const supabase = await createClient();
 
-  const { error } = await supabase.from("routines").insert({
-    user_id: userId,
-    name: parsed.data.name,
-    description: parsed.data.description ?? null,
-    cadence: parsed.data.cadence,
-    // Só "personalizada" usa a lista. Gravar dias numa rotina diária deixaria um
-    // valor mentiroso na coluna, esperando alguém mudar a cadência e se
-    // surpreender com dias que nunca escolheu.
-    active_days: parsed.data.cadence === "custom" ? (parsed.data.activeDays ?? null) : null,
-    shift: parsed.data.shift ?? null,
-    link: parsed.data.link,
-  });
-
-  if (error) return { ok: false, error: error.message };
+  try {
+    await query(
+      `insert into routines (user_id, name, description, cadence, active_days, shift, link)
+       values ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        userId,
+        parsed.data.name,
+        parsed.data.description ?? null,
+        parsed.data.cadence,
+        // Só "personalizada" usa a lista. Gravar dias numa rotina diária deixaria um
+        // valor mentiroso na coluna, esperando alguém mudar a cadência e se
+        // surpreender com dias que nunca escolheu.
+        parsed.data.cadence === "custom" ? (parsed.data.activeDays ?? null) : null,
+        parsed.data.shift ?? null,
+        parsed.data.link,
+      ],
+    );
+  } catch (error) {
+    return { ok: false, error: errorMessage(error) };
+  }
 
   revalidate();
   return { ok: true };
@@ -58,8 +64,7 @@ export async function updateRoutine(routineId: string, input: unknown): Promise<
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  await requireUser();
-  const supabase = await createClient();
+  const userId = await requireUser();
 
   // `Partial<RoutineRow>` e não `Record<string, unknown>`, como no `updateTask`:
   // nome de coluna errado vira erro de compilação, não update vazio.
@@ -78,8 +83,11 @@ export async function updateRoutine(routineId: string, input: unknown): Promise<
 
   if (Object.keys(patch).length === 0) return { ok: true };
 
-  const { error } = await supabase.from("routines").update(patch).eq("id", routineId);
-  if (error) return { ok: false, error: error.message };
+  try {
+    await updateOwned("routines", routineId, userId, patch);
+  } catch (error) {
+    return { ok: false, error: errorMessage(error) };
+  }
 
   revalidate();
   return { ok: true };
@@ -100,37 +108,34 @@ export async function toggleRoutine(
 ): Promise<ActionResult> {
   if (!isValidDateKey(date)) return { ok: false, error: "Data inválida." };
 
-  await requireUser();
-  const supabase = await createClient();
+  const userId = await requireUser();
 
-  const { error } = await supabase.from("routine_logs").upsert(
-    {
-      routine_id: routineId,
-      log_date: date,
-      completed: done,
-      // O CHECK `routine_logs_not_completed_and_skipped` recusa as duas marcas
-      // ao mesmo tempo, então concluir sempre limpa o "pulei".
-      skipped: false,
-    },
-    { onConflict: "routine_id,log_date" },
-  );
-
-  if (error) return { ok: false, error: error.message };
+  try {
+    // O `where exists` é a checagem de posse: o log só entra se a rotina for
+    // desta conta. Sem ele, qualquer id de rotina serviria.
+    await query(
+      `insert into routine_logs (routine_id, log_date, completed, skipped)
+       select r.id, $2, $3, false from routines r where r.id = $1 and r.user_id = $4
+       on conflict (routine_id, log_date)
+       do update set completed = excluded.completed, skipped = excluded.skipped`,
+      [routineId, date, done, userId],
+    );
+  } catch (error) {
+    return { ok: false, error: errorMessage(error) };
+  }
 
   revalidate();
   return { ok: true };
 }
 
 export async function archiveRoutine(routineId: string): Promise<ActionResult> {
-  await requireUser();
-  const supabase = await createClient();
+  const userId = await requireUser();
 
-  const { error } = await supabase
-    .from("routines")
-    .update({ archived_at: new Date().toISOString() })
-    .eq("id", routineId);
-
-  if (error) return { ok: false, error: error.message };
+  try {
+    await updateOwned("routines", routineId, userId, { archived_at: new Date().toISOString() });
+  } catch (error) {
+    return { ok: false, error: errorMessage(error) };
+  }
 
   revalidate();
   return { ok: true };

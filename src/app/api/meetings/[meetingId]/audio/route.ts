@@ -3,7 +3,8 @@ import { stat } from "node:fs/promises";
 import { Readable } from "node:stream";
 import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/env";
-import { createClient, getAuthClaims } from "@/lib/supabase/server";
+import { query, queryOne } from "@/lib/db";
+import { getCurrentUser } from "@/lib/session";
 import { getMeetingRecording } from "@/lib/data/meetings";
 import { deleteMeetingAudioDir, resolveAudioPath, saveMeetingAudio } from "@/lib/storage/audio";
 import { fail, handleApiError, notFound, ok, unauthorized } from "@/lib/http";
@@ -55,23 +56,18 @@ function resolveExtension(file: File): string | null {
   return byName && ALLOWED_EXTENSIONS.has(byName) ? byName : null;
 }
 
-/** Sessão + reunião visível. O `select` já passa pelo RLS, então uma reunião de
- *  outro usuário volta como "não encontrada". */
+/** Sessão + reunião da conta. Uma reunião de outro usuário volta como "não encontrada". */
 async function requireMeeting(meetingId: string) {
-  const claims = await getAuthClaims();
-  if (!claims) return { error: unauthorized() as NextResponse };
+  const user = await getCurrentUser();
+  if (!user) return { error: unauthorized() as NextResponse };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("meetings")
-    .select("id")
-    .eq("id", meetingId)
-    .maybeSingle();
+  const meeting = await queryOne("select id from meetings where id = $1 and user_id = $2", [
+    meetingId,
+    user.id,
+  ]);
+  if (!meeting) return { error: notFound("Reunião não encontrada.") };
 
-  if (error) return { error: fail(500, "meeting_read_failed", error.message) };
-  if (!data) return { error: notFound("Reunião não encontrada.") };
-
-  return { supabase };
+  return { userId: user.id };
 }
 
 export async function POST(
@@ -82,7 +78,6 @@ export async function POST(
     const { meetingId } = await params;
     const guard = await requireMeeting(meetingId);
     if (guard.error) return guard.error;
-    const supabase = guard.supabase;
 
     const formData = await request.formData();
     const file = formData.get("file");
@@ -114,7 +109,7 @@ export async function POST(
     // sobrariam dois áudios no disco com um só na tabela.
     const previous = await getMeetingRecording(meetingId);
     if (previous) {
-      await supabase.from("recordings").delete().eq("id", previous.id);
+      await query("delete from recordings where id = $1", [previous.id]);
       await deleteMeetingAudioDir(meetingId);
     }
 
@@ -122,17 +117,19 @@ export async function POST(
 
     const duration = durationRaw ? Number(durationRaw) : NaN;
 
-    const { error } = await supabase.from("recordings").insert({
-      meeting_id: meetingId,
-      storage_path: relativePath,
-      mime_type: file.type || `audio/${extension}`,
-      size_bytes: sizeBytes,
-      // Só o gravador sabe a duração; um arquivo anexado chega sem ela, e ler a
-      // duração do arquivo exigiria decodificar o áudio no servidor.
-      duration_sec: Number.isFinite(duration) && duration > 0 ? Math.round(duration) : null,
-    });
-
-    if (error) return fail(500, "recording_insert_failed", error.message);
+    await query(
+      `insert into recordings (meeting_id, storage_path, mime_type, size_bytes, duration_sec)
+       values ($1, $2, $3, $4, $5)`,
+      [
+        meetingId,
+        relativePath,
+        file.type || `audio/${extension}`,
+        sizeBytes,
+        // Só o gravador sabe a duração; um arquivo anexado chega sem ela, e ler a
+        // duração do arquivo exigiria decodificar o áudio no servidor.
+        Number.isFinite(duration) && duration > 0 ? Math.round(duration) : null,
+      ],
+    );
 
     return ok({ storagePath: relativePath, sizeBytes });
   } catch (error) {
@@ -209,9 +206,7 @@ export async function DELETE(
     const guard = await requireMeeting(meetingId);
     if (guard.error) return guard.error;
 
-    const { error } = await guard.supabase.from("recordings").delete().eq("meeting_id", meetingId);
-
-    if (error) return fail(500, "recording_delete_failed", error.message);
+    await query("delete from recordings where meeting_id = $1", [meetingId]);
 
     await deleteMeetingAudioDir(meetingId);
 

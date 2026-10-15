@@ -89,7 +89,7 @@ export function MeetingFormDialog({
   }
 
   const participantsDefault = meeting?.participants
-    .map((participant) => participant.external_name ?? "")
+    .map((participant) => participant.name)
     .filter(Boolean)
     .join("\n");
 

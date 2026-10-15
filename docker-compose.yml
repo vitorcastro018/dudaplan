@@ -4,6 +4,9 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     # Os valores vêm de interpolação, não de um `env_file:` apontando para um
     # .env literal. O Coolify (e outras PaaS) injetam as variáveis gerenciadas
     # no contexto de interpolação do compose, mas não necessariamente escrevem
@@ -14,12 +17,12 @@ services:
       NODE_ENV: production
       PORT: 6555
       APP_TIMEZONE: ${APP_TIMEZONE:-America/Sao_Paulo}
-      # `:?` faz o `docker compose` parar na hora, dizendo qual variável falta,
-      # em vez de subir um container que morre depois com erro de validação.
-      # Nenhum valor fica gravado aqui: os dois vêm das variáveis de ambiente
-      # configuradas no Coolify (ou do .env local, em desenvolvimento).
-      SUPABASE_URL: ${SUPABASE_URL:?defina SUPABASE_URL (Project Settings > Data API no painel do Supabase)}
-      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?defina SUPABASE_PUBLISHABLE_KEY (Project Settings > API Keys — use a publicavel, NUNCA a service_role)}
+      # Montada a partir da senha, que é a única coisa que muda entre ambientes.
+      # `:?` faz o `docker compose` parar na hora dizendo qual variável falta,
+      # em vez de subir um container que morre depois. Use uma senha só com
+      # letras e números (openssl rand -hex 24): ela entra numa URL, e um `@`
+      # ou `/` no meio a quebraria.
+      DATABASE_URL: postgres://dudaplan:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD (gere com openssl rand -hex 24)}@db:5432/dudaplan
       # Domínios extras de onde as Server Actions podem ser chamadas. Só é
       # necessário se o proxy não repassar X-Forwarded-Host — ver next.config.ts.
       APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS:-}
@@ -38,9 +41,8 @@ services:
       - "6555"
     ports:
       - "6555:6555"
-    # O banco agora é o Supabase, então não há serviço `db` nem volume de dados
-    # aqui. Este volume guarda só os áudios de reunião, que ainda ficam em disco
-    # — sem ele, cada redeploy apaga as gravações.
+    # Áudios das reuniões, que ficam em disco e não no banco — sem este volume,
+    # cada redeploy apaga as gravações.
     volumes:
       - uploads:/app/data
     stop_grace_period: 30s
@@ -57,5 +59,25 @@ services:
       retries: 3
       start_period: 40s
 
+  # Postgres local. Sem `ports:` de propósito: só o app, pela rede interna do
+  # compose, alcança o banco — ele não fica exposto na internet da VPS.
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dudaplan
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD (gere com openssl rand -hex 24)}
+      POSTGRES_DB: dudaplan
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dudaplan -d dudaplan"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
 volumes:
   uploads: {}
+  pgdata: {}

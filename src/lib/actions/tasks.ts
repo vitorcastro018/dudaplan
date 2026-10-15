@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { query, updateOwned } from "@/lib/db";
 import { requireUser } from "@/lib/session";
+import { errorMessage } from "@/lib/utils";
 import { createTaskSchema, updateTaskSchema } from "@/lib/validation/tasks";
 import { shiftDateKey, todayKey } from "@/lib/date";
-import type { TaskRow, TaskStatus } from "@/lib/supabase/types";
+import type { TaskRow, TaskStatus } from "@/lib/types";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -48,19 +49,24 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
   }
 
   const userId = await requireUser();
-  const supabase = await createClient();
 
-  const { error } = await supabase.from("tasks").insert({
-    user_id: userId,
-    title: parsed.data.title,
-    project_id: parsed.data.projectId ?? null,
-    status: parsed.data.status,
-    priority: parsed.data.priority,
-    scheduled_date: parsed.data.scheduledDate ?? null,
-    due_date: parsed.data.dueDate ?? null,
-  });
-
-  if (error) return { ok: false, error: describeError(error.message) };
+  try {
+    await query(
+      `insert into tasks (user_id, title, project_id, status, priority, scheduled_date, due_date)
+       values ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        userId,
+        parsed.data.title,
+        parsed.data.projectId ?? null,
+        parsed.data.status,
+        parsed.data.priority,
+        parsed.data.scheduledDate ?? null,
+        parsed.data.dueDate ?? null,
+      ],
+    );
+  } catch (error) {
+    return { ok: false, error: describeError(errorMessage(error)) };
+  }
 
   revalidate();
   return { ok: true };
@@ -74,18 +80,16 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
  * status é 'done'. Mandar só o status faz o UPDATE ser recusado.
  */
 export async function setTaskDone(taskId: string, done: boolean): Promise<ActionResult> {
-  await requireUser();
-  const supabase = await createClient();
+  const userId = await requireUser();
 
-  const { error } = await supabase
-    .from("tasks")
-    .update({
+  try {
+    await updateOwned("tasks", taskId, userId, {
       status: (done ? "done" : "todo") satisfies TaskStatus,
       completed_at: done ? new Date().toISOString() : null,
-    })
-    .eq("id", taskId);
-
-  if (error) return { ok: false, error: describeError(error.message) };
+    });
+  } catch (error) {
+    return { ok: false, error: describeError(errorMessage(error)) };
+  }
 
   revalidate();
   return { ok: true };
@@ -97,8 +101,7 @@ export async function updateTask(taskId: string, input: unknown): Promise<Action
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  await requireUser();
-  const supabase = await createClient();
+  const userId = await requireUser();
 
   // `Partial<TaskRow>` e não `Record<string, unknown>`: o segundo passa
   // qualquer chave, então um erro de digitação em nome de coluna viraria um
@@ -125,8 +128,11 @@ export async function updateTask(taskId: string, input: unknown): Promise<Action
 
   if (Object.keys(patch).length === 0) return { ok: true };
 
-  const { error } = await supabase.from("tasks").update(patch).eq("id", taskId);
-  if (error) return { ok: false, error: describeError(error.message) };
+  try {
+    await updateOwned("tasks", taskId, userId, patch);
+  } catch (error) {
+    return { ok: false, error: describeError(errorMessage(error)) };
+  }
 
   revalidate();
   return { ok: true };
@@ -157,11 +163,13 @@ export async function setTaskProject(
 }
 
 export async function deleteTask(taskId: string): Promise<ActionResult> {
-  await requireUser();
-  const supabase = await createClient();
+  const userId = await requireUser();
 
-  const { error } = await supabase.from("tasks").delete().eq("id", taskId);
-  if (error) return { ok: false, error: describeError(error.message) };
+  try {
+    await query("delete from tasks where id = $1 and user_id = $2", [taskId, userId]);
+  } catch (error) {
+    return { ok: false, error: describeError(errorMessage(error)) };
+  }
 
   revalidate();
   return { ok: true };

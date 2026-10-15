@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { queryOne, updateOwned } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { isValidDateKey } from "@/lib/date";
+import { errorMessage } from "@/lib/utils";
 import type { ActionResult } from "@/lib/actions/tasks";
-import type { ProjectRow } from "@/lib/supabase/types";
+import type { ProjectRow } from "@/lib/types";
 
 /** Como `ActionResult`, mas devolve o id — quem cria de dentro de outro
  *  formulário (a tela de reuniões) precisa dele para já selecionar o projeto. */
@@ -107,31 +108,32 @@ export async function createProject(formData: FormData): Promise<CreateProjectRe
   }
 
   const userId = await requireUser();
-  const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("projects")
-    .insert({
-      user_id: userId,
-      owner_id: userId,
-      name: parsed.data.name,
-      problem: parsed.data.problem,
-      outcome: parsed.data.outcome,
-      status: parsed.data.status,
-      start_date: parsed.data.startDate ?? null,
-      deadline_optimistic: parsed.data.deadlineOptimistic,
-      deadline_mediocre: parsed.data.deadlineMediocre,
-      deadline_realistic: parsed.data.deadlineRealistic,
-    })
-    // O `select` depois do insert volta pelo RLS de leitura, que o criador
-    // satisfaz — é o mesmo `user_id` que o `with check` acabou de aprovar.
-    .select("id")
-    .single();
+  try {
+    const created = await queryOne<{ id: string }>(
+      `insert into projects
+         (user_id, name, problem, outcome, status, start_date,
+          deadline_optimistic, deadline_mediocre, deadline_realistic)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       returning id`,
+      [
+        userId,
+        parsed.data.name,
+        parsed.data.problem,
+        parsed.data.outcome,
+        parsed.data.status,
+        parsed.data.startDate ?? null,
+        parsed.data.deadlineOptimistic,
+        parsed.data.deadlineMediocre,
+        parsed.data.deadlineRealistic,
+      ],
+    );
 
-  if (error) return { ok: false, error: error.message };
-
-  revalidate();
-  return { ok: true, id: data.id };
+    revalidate();
+    return { ok: true, id: created!.id };
+  } catch (error) {
+    return { ok: false, error: errorMessage(error) };
+  }
 }
 
 export async function updateProject(projectId: string, input: unknown): Promise<ActionResult> {
@@ -140,8 +142,7 @@ export async function updateProject(projectId: string, input: unknown): Promise<
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  await requireUser();
-  const supabase = await createClient();
+  const userId = await requireUser();
 
   // `Partial<ProjectRow>` e não `Record<string, unknown>`, pela mesma razão do
   // `updateTask`: erro de digitação em nome de coluna vira erro de compilação
@@ -167,23 +168,24 @@ export async function updateProject(projectId: string, input: unknown): Promise<
 
   if (Object.keys(patch).length === 0) return { ok: true };
 
-  const { error } = await supabase.from("projects").update(patch).eq("id", projectId);
-  if (error) return { ok: false, error: error.message };
+  try {
+    await updateOwned("projects", projectId, userId, patch);
+  } catch (error) {
+    return { ok: false, error: errorMessage(error) };
+  }
 
   revalidate();
   return { ok: true };
 }
 
 export async function archiveProject(projectId: string): Promise<ActionResult> {
-  await requireUser();
-  const supabase = await createClient();
+  const userId = await requireUser();
 
-  const { error } = await supabase
-    .from("projects")
-    .update({ archived_at: new Date().toISOString() })
-    .eq("id", projectId);
-
-  if (error) return { ok: false, error: error.message };
+  try {
+    await updateOwned("projects", projectId, userId, { archived_at: new Date().toISOString() });
+  } catch (error) {
+    return { ok: false, error: errorMessage(error) };
+  }
 
   revalidate();
   return { ok: true };

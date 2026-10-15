@@ -43,10 +43,7 @@ export function ProjectMeetings({
       </div>
 
       {meetings.length === 0 ? (
-        <EmptyState
-          title="Sem reuniões"
-          description="Registre a primeira reunião deste projeto."
-        />
+        <EmptyState title="Sem reuniões" description="Registre a primeira reunião deste projeto." />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {meetings.map((meeting) => (

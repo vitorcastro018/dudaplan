@@ -78,7 +78,7 @@ function offsetMs(date: Date, timeZone: string): number {
  *
  * Necessário porque `completed_at` é `timestamptz`. Comparar com uma string sem
  * fuso ("2026-07-28T00:00:00") faz o Postgres interpretá-la no fuso do servidor,
- * que no Supabase é UTC — em São Paulo isso desloca o corte em três horas e
+ * que no banco é UTC — em São Paulo isso desloca o corte em três horas e
  * tarefas concluídas no fim da noite caem no dia seguinte.
  */
 export function dayRangeUtc(dateKey: string): { start: string; end: string } {
@@ -101,7 +101,7 @@ export function dayRangeUtc(dateKey: string): { start: string; end: string } {
  *
  * O campo devolve um relógio sem fuso ("2026-08-03T14:30"). Gravar isso direto
  * numa coluna `timestamptz` faz o Postgres interpretá-lo no fuso do servidor —
- * UTC, no Supabase —, e a reunião marcada para as 14h em São Paulo passa a ser
+ * UTC, no banco —, e a reunião marcada para as 14h em São Paulo passa a ser
  * exibida às 11h. Aqui o horário é sempre lido no fuso do app.
  *
  * As duas passadas são as mesmas do `dayRangeUtc`: a primeira usa o

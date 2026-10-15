@@ -2,7 +2,7 @@
  * Datas civis ("AAAA-MM-DD") em horário local, para uso nos dois lados.
  *
  * Existe separado de `@/lib/date` porque aquele módulo importa `@/lib/env`, que
- * valida as variáveis do Supabase ao ser carregado. Puxar isso para dentro de um
+ * valida as variáveis de ambiente ao ser carregado. Puxar isso para dentro de um
  * Client Component quebraria o bundle do navegador, então o calendário e os
  * cálculos de duração moram aqui, sem nenhuma dependência.
  *

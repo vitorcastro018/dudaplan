@@ -1,4 +1,4 @@
-import type { RoutineShift, RoutineCadence } from "@/lib/supabase/types";
+import type { RoutineShift, RoutineCadence } from "@/lib/types";
 
 /**
  * Os turnos na ordem em que o dia acontece — é essa a ordem das seções da tela.

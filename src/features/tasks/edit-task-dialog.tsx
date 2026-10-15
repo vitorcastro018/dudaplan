@@ -8,7 +8,7 @@ import { Input, Textarea, Select, Label } from "@/components/ui/input";
 import { deleteTask, updateTask } from "@/lib/actions/tasks";
 import { TASK_PRIORITY_LABEL, TASK_STATUS_LABEL } from "@/features/tasks/labels";
 import type { TaskListItem } from "@/lib/data/tasks";
-import type { TaskEnergy, TaskPriority, TaskStatus } from "@/lib/supabase/types";
+import type { TaskEnergy, TaskPriority, TaskStatus } from "@/lib/types";
 
 export interface TaskProjectOption {
   id: string;

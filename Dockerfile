@@ -20,11 +20,8 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     UPLOAD_DIR=/app/data/uploads
 
-# ffmpeg é para o pipeline de reuniões, que fatia áudio acima do limite de 25MB
-# da OpenAI. Por isso a base é bookworm-slim e não Alpine: o ffmpeg do apt é o
-# de verdade. Continua aqui porque a fatia 2 volta a usá-lo.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
+    && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -g 1001 nodejs \
     && useradd -u 1001 -g nodejs -m nextjs
@@ -36,6 +33,9 @@ RUN apt-get update \
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/static ./.next/static
+# Migrations e o script que as aplica no start (db/migrate.mjs importa `pg`, que
+# já está no node_modules traçado pelo standalone).
+COPY --from=builder /app/db ./db
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh \

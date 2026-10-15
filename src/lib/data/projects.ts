@@ -1,10 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
-import { ApiError } from "@/lib/http";
-import type { ProjectRow, ProjectStatus } from "@/lib/supabase/types";
+import { query, queryOne } from "@/lib/db";
+import { requireUser } from "@/lib/session";
+import type { ProjectRow, ProjectStatus } from "@/lib/types";
 
-// Uma string literal só, sem concatenar: o supabase-js infere o formato da
-// linha a partir do texto do `select`, e `"a" + "b"` colapsa para `string`,
-// levando o retorno a `GenericStringError` em vez das colunas pedidas.
 const PROJECT_FIELDS =
   "id, name, problem, outcome, status, start_date, deadline_optimistic, deadline_mediocre, deadline_realistic, completed_at, position, created_at";
 
@@ -25,43 +22,36 @@ export type ProjectListItem = Pick<
 >;
 
 export async function listProjects(status?: ProjectStatus): Promise<ProjectListItem[]> {
-  const supabase = await createClient();
+  const userId = await requireUser();
 
-  let query = supabase
-    .from("projects")
-    .select(PROJECT_FIELDS)
-    .is("archived_at", null)
-    .order("position")
-    .order("created_at");
+  const params: unknown[] = [userId];
+  let filter = "";
+  if (status) {
+    params.push(status);
+    filter = "and status = $2";
+  }
 
-  if (status) query = query.eq("status", status);
-
-  const { data, error } = await query;
-  if (error) throw new ApiError(500, "project_list_failed", error.message);
-  return (data ?? []) as ProjectListItem[];
+  return query<ProjectListItem>(
+    `select ${PROJECT_FIELDS} from projects
+      where user_id = $1 and archived_at is null ${filter}
+      order by position, created_at`,
+    params,
+  );
 }
 
 /** Só id e nome, para preencher seletor e rótulo sem carregar a linha inteira. */
 export async function listProjectOptions(): Promise<{ id: string; name: string }[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("projects")
-    .select("id, name")
-    .is("archived_at", null)
-    .order("position");
-
-  if (error) throw new ApiError(500, "project_options_failed", error.message);
-  return data ?? [];
+  const userId = await requireUser();
+  return query<{ id: string; name: string }>(
+    "select id, name from projects where user_id = $1 and archived_at is null order by position",
+    [userId],
+  );
 }
 
 export async function getProject(projectId: string): Promise<ProjectListItem | null> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("projects")
-    .select(PROJECT_FIELDS)
-    .eq("id", projectId)
-    .maybeSingle();
-
-  if (error) throw new ApiError(500, "project_read_failed", error.message);
-  return (data as ProjectListItem | null) ?? null;
+  const userId = await requireUser();
+  return queryOne<ProjectListItem>(
+    `select ${PROJECT_FIELDS} from projects where id = $1 and user_id = $2`,
+    [projectId, userId],
+  );
 }

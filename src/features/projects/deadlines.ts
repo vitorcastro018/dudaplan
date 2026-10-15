@@ -1,4 +1,4 @@
-import type { ProjectRow } from "@/lib/supabase/types";
+import type { ProjectRow } from "@/lib/types";
 
 /**
  * Os três prazos, na ordem em que aparecem no formulário e nas telas.

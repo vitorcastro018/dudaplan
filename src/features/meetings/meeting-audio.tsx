@@ -6,7 +6,7 @@ import { Mic, Square, Pause, Play, Trash2, Upload, UploadCloud } from "lucide-re
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
-import type { RecordingRow } from "@/lib/supabase/types";
+import type { RecordingRow } from "@/lib/types";
 
 type RecorderState = "idle" | "requesting" | "recording" | "paused" | "preview" | "uploading";
 

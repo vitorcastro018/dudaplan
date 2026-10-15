@@ -1,4 +1,4 @@
-import type { TaskStatus, TaskPriority } from "@/lib/supabase/types";
+import type { TaskStatus, TaskPriority } from "@/lib/types";
 
 export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   backlog: "Backlog",

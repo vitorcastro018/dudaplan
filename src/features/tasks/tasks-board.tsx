@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { createTask, deleteTask, setTaskDone, updateTask } from "@/lib/actions/tasks";
 import { NO_PROJECT } from "@/features/tasks/filters";
 import type { TaskListItem } from "@/lib/data/tasks";
-import type { TaskPriority } from "@/lib/supabase/types";
+import type { TaskPriority } from "@/lib/types";
 import { TASK_PRIORITY_LABEL, TASK_STATUS_LABEL, TASK_STATUS_TONE } from "@/features/tasks/labels";
 import { EditTaskDialog } from "@/features/tasks/edit-task-dialog";
 

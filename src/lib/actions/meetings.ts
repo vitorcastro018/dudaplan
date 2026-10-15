@@ -1,13 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import type { PoolClient } from "pg";
+import { query, queryOne, transaction, updateOwned } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { localDateTimeToUtcIso } from "@/lib/date";
+import { errorMessage } from "@/lib/utils";
 import { deleteMeetingAudioDir } from "@/lib/storage/audio";
 import { createMeetingSchema, updateMeetingSchema } from "@/lib/validation/meetings";
 import type { ActionResult } from "@/lib/actions/tasks";
-import type { MeetingRow } from "@/lib/supabase/types";
+import type { MeetingRow } from "@/lib/types";
 
 export type CreateMeetingResult = { ok: true; id: string } | { ok: false; error: string };
 
@@ -29,29 +31,18 @@ function readForm(formData: FormData) {
  * Regrava a lista de participantes da reunião.
  *
  * Apagar e reinserir, em vez de conciliar quem entrou e quem saiu: os
- * participantes hoje são só nomes soltos em `external_name`, sem nada pendurado
- * neles, então não há o que preservar — e conciliação seria código para manter
- * sem ganho nenhum. O `unique (meeting_id, speaker_label)` não atrapalha:
- * `speaker_label` fica nulo, e o Postgres trata nulos como distintos entre si.
+ * participantes são só nomes soltos, sem nada pendurado neles, então não há o
+ * que preservar — e conciliação seria código para manter sem ganho nenhum.
+ * Roda dentro da transação do chamador, para a lista nunca ficar pela metade.
  */
-async function replaceParticipants(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  meetingId: string,
-  names: string[],
-): Promise<string | null> {
-  const { error: deleteError } = await supabase
-    .from("meeting_participants")
-    .delete()
-    .eq("meeting_id", meetingId);
+async function replaceParticipants(client: PoolClient, meetingId: string, names: string[]) {
+  await client.query("delete from meeting_participants where meeting_id = $1", [meetingId]);
+  if (names.length === 0) return;
 
-  if (deleteError) return deleteError.message;
-  if (names.length === 0) return null;
-
-  const { error } = await supabase
-    .from("meeting_participants")
-    .insert(names.map((name) => ({ meeting_id: meetingId, external_name: name })));
-
-  return error?.message ?? null;
+  await client.query(
+    "insert into meeting_participants (meeting_id, name) select $1, unnest($2::text[])",
+    [meetingId, names],
+  );
 }
 
 export async function createMeeting(formData: FormData): Promise<CreateMeetingResult> {
@@ -61,28 +52,30 @@ export async function createMeeting(formData: FormData): Promise<CreateMeetingRe
   }
 
   const userId = await requireUser();
-  const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("meetings")
-    .insert({
-      user_id: userId,
-      created_by: userId,
-      title: parsed.data.title,
-      project_id: parsed.data.projectId ?? null,
-      notes: parsed.data.notes ?? null,
-      scheduled_at: parsed.data.scheduledAt ? localDateTimeToUtcIso(parsed.data.scheduledAt) : null,
-    })
-    .select("id")
-    .single();
+  try {
+    const id = await transaction(async (client) => {
+      const created = await client.query<{ id: string }>(
+        `insert into meetings (user_id, title, project_id, notes, scheduled_at)
+         values ($1, $2, $3, $4, $5) returning id`,
+        [
+          userId,
+          parsed.data.title,
+          parsed.data.projectId ?? null,
+          parsed.data.notes ?? null,
+          parsed.data.scheduledAt ? localDateTimeToUtcIso(parsed.data.scheduledAt) : null,
+        ],
+      );
+      const meetingId = created.rows[0].id;
+      await replaceParticipants(client, meetingId, parsed.data.participants);
+      return meetingId;
+    });
 
-  if (error) return { ok: false, error: error.message };
-
-  const participantsError = await replaceParticipants(supabase, data.id, parsed.data.participants);
-  if (participantsError) return { ok: false, error: participantsError };
-
-  revalidate();
-  return { ok: true, id: data.id };
+    revalidate();
+    return { ok: true, id };
+  } catch (error) {
+    return { ok: false, error: errorMessage(error) };
+  }
 }
 
 export async function updateMeeting(meetingId: string, input: unknown): Promise<ActionResult> {
@@ -91,8 +84,7 @@ export async function updateMeeting(meetingId: string, input: unknown): Promise<
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  await requireUser();
-  const supabase = await createClient();
+  const userId = await requireUser();
 
   // `Partial<MeetingRow>` e não `Record<string, unknown>`, como nas outras
   // actions: nome de coluna errado vira erro de compilação.
@@ -106,19 +98,22 @@ export async function updateMeeting(meetingId: string, input: unknown): Promise<
     patch.scheduled_at = data.scheduledAt ? localDateTimeToUtcIso(data.scheduledAt) : null;
   }
 
-  if (Object.keys(patch).length > 0) {
-    const { error } = await supabase.from("meetings").update(patch).eq("id", meetingId);
-    if (error) return { ok: false, error: error.message };
-  }
+  try {
+    // Só mexe nos participantes de uma reunião que é desta conta.
+    const owned = await queryOne("select 1 from meetings where id = $1 and user_id = $2", [
+      meetingId,
+      userId,
+    ]);
+    if (!owned) return { ok: false, error: "Reunião não encontrada." };
 
-  // A lista de participantes é sempre reenviada pelo formulário, inclusive
-  // vazia — que é como se remove todo mundo.
-  const participantsError = await replaceParticipants(
-    supabase,
-    meetingId,
-    parsed.data.participants,
-  );
-  if (participantsError) return { ok: false, error: participantsError };
+    await updateOwned("meetings", meetingId, userId, patch);
+
+    // A lista de participantes é sempre reenviada pelo formulário, inclusive
+    // vazia — que é como se remove todo mundo.
+    await transaction((client) => replaceParticipants(client, meetingId, parsed.data.participants));
+  } catch (error) {
+    return { ok: false, error: errorMessage(error) };
+  }
 
   revalidate();
   return { ok: true };
@@ -127,18 +122,23 @@ export async function updateMeeting(meetingId: string, input: unknown): Promise<
 /**
  * Apaga a reunião e o áudio dela.
  *
- * O `on delete cascade` do schema leva participantes, gravação, transcrição e
- * artefatos. O arquivo em disco não está no banco e não some sozinho — sem esta
+ * O `on delete cascade` do schema leva participantes e gravação. O arquivo em disco não está no banco e não some sozinho — sem esta
  * chamada, cada reunião apagada deixaria um diretório órfão no volume.
  */
 export async function deleteMeeting(meetingId: string): Promise<ActionResult> {
-  await requireUser();
-  const supabase = await createClient();
+  const userId = await requireUser();
 
-  const { error } = await supabase.from("meetings").delete().eq("id", meetingId);
-  if (error) return { ok: false, error: error.message };
-
-  await deleteMeetingAudioDir(meetingId);
+  try {
+    const deleted = await query(
+      "delete from meetings where id = $1 and user_id = $2 returning id",
+      [meetingId, userId],
+    );
+    // Só apaga o diretório do áudio se a reunião era desta conta; senão
+    // qualquer id conhecido apagaria o áudio de outra pessoa.
+    if (deleted.length > 0) await deleteMeetingAudioDir(meetingId);
+  } catch (error) {
+    return { ok: false, error: errorMessage(error) };
+  }
 
   revalidate();
   return { ok: true };

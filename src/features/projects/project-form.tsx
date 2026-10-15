@@ -10,7 +10,7 @@ import { createProject, updateProject } from "@/lib/actions/projects";
 import { PROJECT_DEADLINES } from "@/features/projects/deadlines";
 import { PROJECT_STATUS_LABEL } from "@/features/projects/status";
 import type { ProjectListItem } from "@/lib/data/projects";
-import type { ProjectStatus } from "@/lib/supabase/types";
+import type { ProjectStatus } from "@/lib/types";
 
 type DeadlineField = (typeof PROJECT_DEADLINES)[number]["field"];
 type Deadlines = Record<DeadlineField, string | null>;

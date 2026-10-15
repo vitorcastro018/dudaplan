@@ -16,3 +16,8 @@ export function slugify(input: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+/** Texto de um erro capturado em `catch`, que em TypeScript chega como `unknown`. */
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}

@@ -41,7 +41,7 @@ export function MeetingDetail({
           <ul className="border-line bg-surface divide-line divide-y rounded-[var(--radius-lg)] border">
             {meeting.participants.map((participant) => (
               <li key={participant.id} className="text-ink-2 px-4 py-2.5 text-sm">
-                {participant.external_name ?? "Sem nome"}
+                {participant.name}
               </li>
             ))}
           </ul>

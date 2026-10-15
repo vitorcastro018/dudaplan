@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { createRoutine, updateRoutine } from "@/lib/actions/routines";
 import { ROUTINE_CADENCES, ROUTINE_SHIFTS, WEEKDAYS } from "@/features/routines/shifts";
 import type { RoutineListItem } from "@/lib/data/routines";
-import type { RoutineShift } from "@/lib/supabase/types";
+import type { RoutineShift } from "@/lib/types";
 
 /** `weekly` não é oferecida no formulário — ver o comentário em `shifts.ts`. */
 type FormCadence = "daily" | "weekdays" | "custom";

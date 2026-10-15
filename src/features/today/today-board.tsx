@@ -18,7 +18,7 @@ import {
   type ActionResult,
 } from "@/lib/actions/tasks";
 import type { TaskListItem, TodayBoard as TodayBoardData } from "@/lib/data/tasks";
-import type { TaskPriority } from "@/lib/supabase/types";
+import type { TaskPriority } from "@/lib/types";
 import { TASK_PRIORITY_LABEL } from "@/features/tasks/labels";
 import { EditTaskDialog, type TaskProjectOption } from "@/features/tasks/edit-task-dialog";
 

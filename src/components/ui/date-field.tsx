@@ -49,8 +49,7 @@ export function DateField({
   const [open, setOpen] = React.useState(false);
   const fieldId = React.useId();
 
-  const duration =
-    isDateKey(baseline) && isDateKey(value) ? daysBetween(baseline, value) : null;
+  const duration = isDateKey(baseline) && isDateKey(value) ? daysBetween(baseline, value) : null;
 
   return (
     <div>

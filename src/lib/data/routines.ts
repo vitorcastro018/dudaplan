@@ -1,7 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
-import { ApiError } from "@/lib/http";
+import { query } from "@/lib/db";
 import { todayKey } from "@/lib/date";
-import type { RoutineRow } from "@/lib/supabase/types";
+import { requireUser } from "@/lib/session";
+import type { RoutineRow } from "@/lib/types";
 
 export type RoutineListItem = Pick<
   RoutineRow,
@@ -29,30 +29,31 @@ export interface RoutineBoard {
  * é um Map — e assim rotina sem log ainda aparece, que é o caso mais comum.
  */
 export async function getRoutineBoard(date = todayKey()): Promise<RoutineBoard> {
-  const supabase = await createClient();
+  const userId = await requireUser();
 
   const [routines, logs] = await Promise.all([
-    supabase
-      .from("routines")
-      .select(
-        "id, name, description, cadence, active_days, shift, link, target_time, position",
-      )
-      .is("archived_at", null)
-      .order("position")
-      .order("created_at"),
-    supabase.from("routine_logs").select("routine_id, completed, skipped").eq("log_date", date),
+    query<Omit<RoutineListItem, "done" | "skipped">>(
+      `select id, name, description, cadence, active_days, shift, link, target_time, position
+         from routines
+        where user_id = $1 and archived_at is null
+        order by position, created_at`,
+      [userId],
+    ),
+    query<{ routine_id: string; completed: boolean; skipped: boolean }>(
+      `select l.routine_id, l.completed, l.skipped
+         from routine_logs l join routines r on r.id = l.routine_id
+        where r.user_id = $1 and l.log_date = $2`,
+      [userId, date],
+    ),
   ]);
 
-  if (routines.error) throw new ApiError(500, "routine_list_failed", routines.error.message);
-  if (logs.error) throw new ApiError(500, "routine_log_failed", logs.error.message);
-
-  const logByRoutine = new Map((logs.data ?? []).map((log) => [log.routine_id, log]));
+  const logByRoutine = new Map(logs.map((log) => [log.routine_id, log]));
 
   const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
 
   return {
     date,
-    routines: (routines.data ?? [])
+    routines: routines
       // `active_days` guarda os dias da semana em que a rotina vale (0 = domingo).
       // Nulo significa "todo dia" — filtrar aqui e não no banco porque a lista é
       // curta e o filtro depende do dia sendo consultado.
@@ -66,6 +67,6 @@ export async function getRoutineBoard(date = todayKey()): Promise<RoutineBoard> 
         ...routine,
         done: logByRoutine.get(routine.id)?.completed ?? false,
         skipped: logByRoutine.get(routine.id)?.skipped ?? false,
-      })) as RoutineListItem[],
+      })),
   };
 }

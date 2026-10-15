@@ -34,17 +34,13 @@ yarn-error.log*
 .env*
 !.env.example
 
-# vercel
-.vercel
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
-# prisma generated client
-/src/generated
-
 # local uploads
 /data
 
-/src/generated/prisma
+# editor
+.vscode/
+.idea/

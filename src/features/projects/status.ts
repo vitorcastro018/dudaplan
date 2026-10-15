@@ -1,4 +1,4 @@
-import type { ProjectStatus } from "@/lib/supabase/types";
+import type { ProjectStatus } from "@/lib/types";
 
 export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
   planning: "Planejando",
