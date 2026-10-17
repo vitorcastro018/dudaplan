@@ -18,7 +18,7 @@ Todo acesso a dados acontece em Server Component, Server Action ou Route Handler
 
 - **Login próprio:** e-mail e senha (hash scrypt). A sessão é um token aleatório num cookie `httpOnly`; no banco fica só o hash dele (tabela `sessions`), então apagar a linha derruba o acesso na hora.
 - **Isolamento:** toda linha de dado tem `user_id` e **toda consulta filtra por ele** (`src/lib/data/*` e `src/lib/actions/*`). Não há RLS — o banco não é exposto, e o único cliente dele é o servidor. Onde uma linha aponta para outra (tarefa → projeto), a chave estrangeira é composta com `user_id`, então o próprio banco recusa ligar dados de contas diferentes.
-- **Cadastro:** aberto por padrão. Defina `APP_SIGNUP_CODE` para exigir um código de convite.
+- **Cadastro:** aberto por padrão. No Coolify o código de convite é gerado sozinho (`SERVICE_PASSWORD_SIGNUP`); fora dele, defina `APP_SIGNUP_CODE` para exigir um.
 
 ## Rodando localmente
 
@@ -45,14 +45,15 @@ Acesse `http://localhost:6555` e crie sua conta na aba **Criar conta**.
 ## Deploy na VPS com Coolify
 
 1. No Coolify, crie um recurso **Docker Compose** apontando para este repositório.
-2. Em **Environment Variables**, defina (ambas opcionais, mas recomendadas):
+2. **Não precisa criar nenhuma variável.** O compose usa variáveis "mágicas" do Coolify, que ele gera sozinho no primeiro deploy e mostra em _Environment Variables_ (os valores persistem entre deploys):
 
-   | Variável                             | Valor                              |
-   | ------------------------------------ | ---------------------------------- |
-   | `APP_SIGNUP_CODE`                    | código de convite para criar conta |
-   | `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | gere com `openssl rand -base64 32` |
+   | Variável gerada                  | Para que serve                                                                                         |
+   | -------------------------------- | ------------------------------------------------------------------------------------------------------ |
+   | `SERVICE_PASSWORD_POSTGRES`      | senha do banco. **Não a troque depois que o banco existir** — o Postgres só a usa na criação do volume |
+   | `SERVICE_PASSWORD_SIGNUP`        | código de convite do cadastro. **É ele que você digita ao criar a conta**; pode trocar por uma frase   |
+   | `SERVICE_PASSWORD_64_ACTIONSKEY` | semente da chave de criptografia das Server Actions (o container deriva a chave). Não precisa mexer    |
 
-   **A senha do Postgres você não precisa criar.** O compose usa `SERVICE_PASSWORD_POSTGRES`, uma variável mágica do Coolify: no primeiro deploy ele gera a senha, guarda em _Environment Variables_ e a reaproveita nos deploys seguintes (não a troque depois que o banco existir). O app conecta pelas variáveis `PG*`, então a senha pode ter qualquer caractere. Todas as variáveis são de **runtime**: trocar uma é reiniciar o container, não rebuildar.
+   O app conecta ao banco pelas variáveis `PG*`, então a senha pode ter qualquer caractere. Todas as variáveis são de **runtime**: trocar uma é reiniciar o container, não rebuildar.
 
 3. Configure o domínio com TLS no serviço `app` (porta 6555) e o health check em `GET /api/health`. O navegador só libera o microfone em HTTPS ou `localhost`; sem TLS a reunião aceita só áudio anexado.
 4. Faça o deploy. No start, o container do app **aplica as migrations pendentes** antes de subir o servidor; se uma falhar, ele não sobe.

@@ -34,11 +34,18 @@ services:
       # Domínios extras de onde as Server Actions podem ser chamadas. Só é
       # necessário se o proxy não repassar X-Forwarded-Host — ver next.config.ts.
       APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS:-}
-      # Se definido, a tela de cadastro exige este código. Vazio = cadastro aberto.
-      APP_SIGNUP_CODE: ${APP_SIGNUP_CODE:-}
-      # Mantém as referências das Server Actions válidas entre builds. Sem uma
-      # chave estável o Next gera uma nova a cada build, e toda aba aberta passa
-      # a falhar com "Failed to find Server Action" depois de um redeploy.
+      # Código de convite do cadastro. `SERVICE_PASSWORD_SIGNUP` é outra variável
+      # mágica do Coolify: ele gera um valor aleatório no primeiro deploy e o
+      # mostra em Environment Variables (é lá que você o lê, e pode trocá-lo por
+      # uma frase sua). Fora do Coolify fica vazio = cadastro aberto.
+      APP_SIGNUP_CODE: ${SERVICE_PASSWORD_SIGNUP:-}
+      # Mantém as referências das Server Actions válidas entre builds e
+      # redeploys; sem chave estável, toda aba aberta falha com "Failed to find
+      # Server Action" depois de um deploy. O Next exige base64 de 16/24/32
+      # bytes, então o docker-entrypoint.sh deriva a chave desta semente (gerada
+      # pelo Coolify, estável entre deploys). Para usar uma chave sua, defina
+      # NEXT_SERVER_ACTIONS_ENCRYPTION_KEY — ela tem prioridade.
+      ACTIONS_KEY_SEED: ${SERVICE_PASSWORD_64_ACTIONSKEY:-}
       NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:-}
       UPLOAD_DIR: ${UPLOAD_DIR:-/app/data/uploads}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-200}

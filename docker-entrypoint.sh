@@ -23,4 +23,14 @@ fi
 # schema pela metade.
 node /app/db/migrate.mjs
 
+# Chave de criptografia das Server Actions: usa a que foi definida; senão deriva
+# uma da semente que o Coolify gera (SHA-256 em base64 = exatamente 32 bytes, o
+# formato que o Next exige). É determinística: a mesma semente dá a mesma chave
+# a cada deploy, que é o ponto — chave nova a cada start invalidaria as abas
+# abertas.
+if [ -z "$NEXT_SERVER_ACTIONS_ENCRYPTION_KEY" ] && [ -n "$ACTIONS_KEY_SEED" ]; then
+  NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(node -e "process.stdout.write(require('node:crypto').createHash('sha256').update(process.env.ACTIONS_KEY_SEED).digest('base64'))")"
+  export NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+fi
+
 exec "$@"
