@@ -6,6 +6,7 @@ import {
   formatTimeLabel,
   utcIsoToLocalDateTimeInput,
 } from "@/lib/date";
+import { parseActionItems, type ActionItem } from "@/lib/ai/action-items";
 import { parseImprovement, type ProcessImprovement } from "@/lib/ai/improvement";
 import type { MeetingRow, MeetingParticipantRow, RecordingRow } from "@/lib/types";
 
@@ -50,6 +51,8 @@ export interface MeetingDetail extends MeetingListItem {
   summaryLabel: string | null;
   improvement: ProcessImprovement | null;
   improvementLabel: string | null;
+  actionItems: ActionItem[];
+  actionItemsLabel: string | null;
   participants: MeetingParticipant[];
   recording: RecordingRow | null;
   scheduledLabel: string | null;
@@ -188,8 +191,12 @@ export async function getMeeting(meetingId: string): Promise<MeetingDetail | nul
       summarized_at: string | null;
       improvement: unknown;
       improved_at: string | null;
+      action_items: unknown;
+      action_items_at: string | null;
     }>(
-      "select transcript, summary, summarized_at, improvement, improved_at from meetings where id = $1",
+      `select transcript, summary, summarized_at, improvement, improved_at,
+              action_items, action_items_at
+         from meetings where id = $1`,
       [meetingId],
     ),
   ]);
@@ -201,6 +208,8 @@ export async function getMeeting(meetingId: string): Promise<MeetingDetail | nul
     summaryLabel: ai?.summarized_at ? formatDateTimeLabel(ai.summarized_at) : null,
     improvement: ai?.improvement ? parseImprovement(ai.improvement) : null,
     improvementLabel: ai?.improved_at ? formatDateTimeLabel(ai.improved_at) : null,
+    actionItems: parseActionItems(ai?.action_items),
+    actionItemsLabel: ai?.action_items_at ? formatDateTimeLabel(ai.action_items_at) : null,
     participants,
     recording,
     scheduledLabel: meeting.scheduled_at ? formatDateTimeLabel(meeting.scheduled_at) : null,

@@ -190,3 +190,66 @@ export async function suggestProcessImprovement(input: {
     throw new AiError("A resposta da OpenAI veio num formato inválido. Tente de novo.");
   }
 }
+
+const ACTION_ITEMS_PROMPT = `Você extrai os próximos passos de uma reunião a partir da transcrição. Escreva em português do Brasil. Liste só ações concretas que alguém precisa fazer depois da reunião; não invente ações, responsáveis nem prazos que a conversa não sustente.
+
+Responda SOMENTE com um JSON neste formato:
+{ "items": [ { "title": string, "owner": string | null, "dueDate": "AAAA-MM-DD" | null, "priority": "low" | "medium" | "high" | "urgent" } ] }
+
+Regras:
+- "title": a ação começando por um verbo no infinitivo, com até 12 palavras (ex.: "Enviar a proposta revisada").
+- "owner": o nome de quem ficou responsável, só se foi dito; senão null.
+- "dueDate": só se um prazo foi dito. Converta prazos relativos ("até sexta", "semana que vem") usando a data de hoje informada. Sem prazo dito, null.
+- "priority": "medium" por padrão; "high" ou "urgent" só se a conversa indicar urgência.
+- No máximo 15 itens, do mais importante para o menos. Se a reunião não tiver nenhuma ação, devolva { "items": [] }.
+- Não repita ações que já viraram tarefa (lista abaixo, quando houver).`;
+
+export async function extractActionItems(input: {
+  title: string;
+  participants: string[];
+  notes: string | null;
+  transcript: string;
+  today: string;
+  alreadyCreated: string[];
+}): Promise<unknown> {
+  const key = apiKey();
+
+  const context = [
+    `Data de hoje: ${input.today}`,
+    `Título da reunião: ${input.title}`,
+    input.participants.length > 0 ? `Participantes: ${input.participants.join(", ")}` : null,
+    input.notes ? `Anotações feitas pelo usuário:\n${input.notes}` : null,
+    input.alreadyCreated.length > 0
+      ? `Ações que já viraram tarefa:\n${input.alreadyCreated.map((t) => `- ${t}`).join("\n")}`
+      : null,
+    `Transcrição:\n${input.transcript}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const response = await fetch(`${API}/chat/completions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: env.OPENAI_SUMMARY_MODEL,
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: ACTION_ITEMS_PROMPT },
+        { role: "user", content: context },
+      ],
+    }),
+  });
+  if (!response.ok) throw await failure(response);
+
+  const body = await response.json();
+  const text = body?.choices?.[0]?.message?.content;
+  if (typeof text !== "string") {
+    throw new AiError("A OpenAI não devolveu os próximos passos. Tente de novo.");
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new AiError("A resposta da OpenAI veio num formato inválido. Tente de novo.");
+  }
+}

@@ -6,6 +6,7 @@ import { MeetingDetail } from "@/features/meetings/meeting-detail";
 import { MeetingActions } from "@/features/meetings/meeting-actions";
 import { MeetingAudio } from "@/features/meetings/meeting-audio";
 import { MeetingSummary } from "@/features/meetings/meeting-summary";
+import { MeetingActionItems } from "@/features/meetings/meeting-action-items";
 import { MeetingImprovement } from "@/features/meetings/meeting-improvement";
 
 export const dynamic = "force-dynamic";
@@ -58,13 +59,19 @@ export default async function MeetingPage({
           <MeetingAudio meetingId={meeting.id} recording={meeting.recording} />
           <MeetingSummary meeting={meeting} />
           <hr className="border-line my-4" />
+          <MeetingActionItems meeting={meeting} />
+          <hr className="border-line my-4" />
           <MeetingImprovement meeting={meeting} />
         </>
       ) : (
         <>
           <MeetingDetail meeting={meeting} projectName={project?.name ?? null} />
           {meeting.summary && <MeetingSummary meeting={meeting} />}
-          {meeting.summary && meeting.improvement && <hr className="border-line my-4" />}
+          {meeting.summary && meeting.actionItemsLabel && <hr className="border-line my-4" />}
+          {meeting.actionItemsLabel && <MeetingActionItems meeting={meeting} />}
+          {(meeting.summary || meeting.actionItemsLabel) && meeting.improvement && (
+            <hr className="border-line my-4" />
+          )}
           {meeting.improvement && <MeetingImprovement meeting={meeting} />}
         </>
       )}
