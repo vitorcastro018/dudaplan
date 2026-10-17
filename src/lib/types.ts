@@ -108,6 +108,9 @@ export type MeetingRow = {
   /** Sugestão de melhoria de processo (JSON), gerada pela IA. */
   improvement: unknown;
   improved_at: string | null;
+  /** Próximos passos extraídos pela IA (JSON), para virarem tarefas. */
+  action_items: unknown;
+  action_items_at: string | null;
   archived_at: string | null;
   created_at: string;
   updated_at: string;
