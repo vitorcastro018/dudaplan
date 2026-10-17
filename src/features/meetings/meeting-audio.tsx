@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Mic, Square, Pause, Play, Trash2, Upload, UploadCloud } from "lucide-react";
+import { Mic, Square, Pause, Play, Trash2, TriangleAlert, Upload, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import type { RecordingRow } from "@/lib/types";
+import { clearRecording, loadRecording, saveChunk, type SavedRecording } from "./recording-store";
 
 type RecorderState = "idle" | "requesting" | "recording" | "paused" | "preview" | "uploading";
 
@@ -70,12 +71,68 @@ export function MeetingAudio({
   const mimeTypeRef = React.useRef<string>("");
   const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const wakeLockRef = React.useRef<WakeLockSentinel | null>(null);
+  // O tempo vem do relógio, não de contar ticks: `setInterval` é atrasado em
+  // aba em segundo plano e a duração sairia menor que a real.
+  const accumulatedMsRef = React.useRef(0);
+  const segmentStartRef = React.useRef<number | null>(null);
+  const [micMuted, setMicMuted] = React.useState(false);
+  const [recovered, setRecovered] = React.useState<SavedRecording | null>(null);
+
+  const stateRef = React.useRef(state);
+  React.useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   React.useEffect(() => {
     return () => {
       streamRef.current?.getTracks().forEach((track) => track.stop());
       if (timerRef.current) clearInterval(timerRef.current);
+      wakeLockRef.current?.release().catch(() => {});
     };
+  }, []);
+
+  // Gravação deixada pela visita anterior (aba fechada ou morta no meio).
+  React.useEffect(() => {
+    let cancelled = false;
+    loadRecording(meetingId).then((saved) => {
+      if (!cancelled && saved) setRecovered(saved);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [meetingId]);
+
+  async function acquireWakeLock() {
+    try {
+      if (!("wakeLock" in navigator)) return;
+      wakeLockRef.current = await navigator.wakeLock.request("screen");
+    } catch {
+      // Negado (economia de bateria) ou sem suporte: grava mesmo assim.
+    }
+  }
+
+  function releaseWakeLock() {
+    wakeLockRef.current?.release().catch(() => {});
+    wakeLockRef.current = null;
+  }
+
+  // O navegador solta o wake lock sempre que a aba some; ao voltar, pega de novo
+  // e atualiza o cronômetro, que não andou enquanto a aba estava escondida.
+  React.useEffect(() => {
+    function onVisibilityChange() {
+      if (document.visibilityState !== "visible") return;
+      if (stateRef.current === "recording") {
+        setElapsed(Math.floor(getElapsedMs() / 1000));
+        acquireWakeLock();
+        const recorder = recorderRef.current;
+        if (recorder && recorder.state === "inactive") {
+          toast.error("A gravação foi interrompida pelo sistema. O que foi gravado foi mantido.");
+        }
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, []);
 
   React.useEffect(() => {
@@ -88,17 +145,31 @@ export function MeetingAudio({
     return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [state]);
 
+  function getElapsedMs() {
+    const running = segmentStartRef.current ? Date.now() - segmentStartRef.current : 0;
+    return accumulatedMsRef.current + running;
+  }
+
   function startTimer() {
-    timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
+    segmentStartRef.current = Date.now();
+    timerRef.current = setInterval(() => setElapsed(Math.floor(getElapsedMs() / 1000)), 1000);
   }
 
   function stopTimer() {
+    if (segmentStartRef.current) {
+      accumulatedMsRef.current += Date.now() - segmentStartRef.current;
+      segmentStartRef.current = null;
+    }
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = null;
+    setElapsed(Math.floor(accumulatedMsRef.current / 1000));
   }
 
   async function handleStart() {
     setState("requesting");
+    setRecovered(null);
+    setMicMuted(false);
+    await clearRecording(meetingId);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -119,22 +190,42 @@ export function MeetingAudio({
       chunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
+        if (e.data.size === 0) return;
+        chunksRef.current.push(e.data);
+        saveChunk(meetingId, e.data, mimeTypeRef.current, getElapsedMs());
       };
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || "audio/webm" });
         setPreviewUrl(URL.createObjectURL(blob));
         setState("preview");
         stopTimer();
+        releaseWakeLock();
+        setMicMuted(false);
+        stream.getTracks().forEach((track) => track.stop());
       };
 
-      // Fatias de 5s: se a aba morrer no meio, o que já foi entregue está em
-      // `chunksRef` em vez de tudo viver num buffer único do MediaRecorder.
+      // Quando o sistema tira o microfone (celular travado, ligação, outro app
+      // usando o áudio) a faixa fica muda ou termina; avisar é melhor que deixar
+      // a pessoa achar que segue gravando.
+      stream.getAudioTracks().forEach((track) => {
+        track.onmute = () => setMicMuted(true);
+        track.onunmute = () => setMicMuted(false);
+        track.onended = () => {
+          if (recorder.state !== "inactive") recorder.stop();
+          toast.error("O microfone foi desligado pelo sistema. A gravação até aqui foi mantida.");
+        };
+      });
+
+      // Fatias de 5s: cada uma vai para `chunksRef` e para o IndexedDB, então se
+      // a aba morrer no meio o que já foi entregue ainda pode ser recuperado.
       recorder.start(5000);
       recorderRef.current = recorder;
+      accumulatedMsRef.current = 0;
+      segmentStartRef.current = null;
       setElapsed(0);
       startTimer();
       setState("recording");
+      acquireWakeLock();
     } catch (error) {
       setState("idle");
       if (error instanceof DOMException && error.name === "NotAllowedError") {
@@ -170,8 +261,27 @@ export function MeetingAudio({
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
     chunksRef.current = [];
+    accumulatedMsRef.current = 0;
     setElapsed(0);
     setState("idle");
+    clearRecording(meetingId);
+  }
+
+  function handleRecover() {
+    if (!recovered) return;
+    chunksRef.current = recovered.chunks;
+    mimeTypeRef.current = recovered.mimeType;
+    accumulatedMsRef.current = recovered.elapsedMs;
+    const blob = new Blob(recovered.chunks, { type: recovered.mimeType || "audio/webm" });
+    setPreviewUrl(URL.createObjectURL(blob));
+    setElapsed(Math.floor(recovered.elapsedMs / 1000));
+    setRecovered(null);
+    setState("preview");
+  }
+
+  function handleDiscardRecovered() {
+    setRecovered(null);
+    clearRecording(meetingId);
   }
 
   function uploadBlob(blob: Blob, filename: string, durationSeconds: number) {
@@ -197,8 +307,10 @@ export function MeetingAudio({
         if (previewUrl) URL.revokeObjectURL(previewUrl);
         setPreviewUrl(null);
         chunksRef.current = [];
+        accumulatedMsRef.current = 0;
         setElapsed(0);
         setState("idle");
+        if (previewUrl) clearRecording(meetingId);
         // O upload é Route Handler, então não passa por `revalidatePath` —
         // é este refresh que traz a gravação nova para a tela.
         router.refresh();
@@ -283,6 +395,23 @@ export function MeetingAudio({
       <div className="border-line bg-surface rounded-[var(--radius-lg)] border p-5">
         {state === "idle" && (
           <div className="flex flex-col gap-3">
+            {recovered && (
+              <div className="border-line bg-paper-sunk flex flex-col gap-3 rounded-[var(--radius-lg)] border p-4">
+                <p className="text-ink text-sm">
+                  Há uma gravação não enviada desta reunião (
+                  {formatElapsed(recovered.elapsedMs / 1000)}
+                  ). Ela ficou salva neste navegador quando a página foi fechada ou interrompida.
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleRecover}>
+                    Recuperar gravação
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleDiscardRecovered}>
+                    Descartar
+                  </Button>
+                </div>
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-3">
               <Button onClick={handleStart}>
                 <Mic className="h-4 w-4" />
@@ -302,7 +431,9 @@ export function MeetingAudio({
             </div>
             <p className="text-ink-muted text-xs">
               Anexar aceita mp3, m4a, wav, ogg e webm. A gravação pelo microfone usa o formato que o
-              navegador oferece (WebM no Chrome, MP4 no Safari) e exige HTTPS ou localhost.
+              navegador oferece (WebM no Chrome, MP4 no Safari) e exige HTTPS ou localhost. No
+              celular, mantenha esta tela aberta durante a gravação: ela não apaga sozinha, mas
+              travar o aparelho ou trocar de app pode interromper o microfone.
               {recording && " Enviar um novo áudio substitui o atual."}
             </p>
           </div>
@@ -313,32 +444,40 @@ export function MeetingAudio({
         )}
 
         {(state === "recording" || state === "paused") && (
-          <div className="flex items-center gap-4">
-            <span
-              className={
-                "h-3 w-3 rounded-full " +
-                (state === "recording" ? "bg-danger animate-pulse" : "bg-ochre")
-              }
-            />
-            <span className="text-ink font-mono text-lg tabular-nums">
-              {formatElapsed(elapsed)}
-            </span>
-            <div className="ml-auto flex gap-2">
-              {state === "recording" ? (
-                <Button variant="secondary" size="sm" onClick={handlePause}>
-                  <Pause className="h-3.5 w-3.5" />
-                  Pausar
+          <div className="flex flex-col gap-4">
+            {micMuted && (
+              <p className="text-danger flex items-start gap-2 text-sm">
+                <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />O microfone está mudo (celular
+                travado ou outro app usando o áudio). Volte para esta tela para continuar gravando.
+              </p>
+            )}
+            <div className="flex items-center gap-4">
+              <span
+                className={
+                  "h-3 w-3 rounded-full " +
+                  (state === "recording" ? "bg-danger animate-pulse" : "bg-ochre")
+                }
+              />
+              <span className="text-ink font-mono text-lg tabular-nums">
+                {formatElapsed(elapsed)}
+              </span>
+              <div className="ml-auto flex gap-2">
+                {state === "recording" ? (
+                  <Button variant="secondary" size="sm" onClick={handlePause}>
+                    <Pause className="h-3.5 w-3.5" />
+                    Pausar
+                  </Button>
+                ) : (
+                  <Button variant="secondary" size="sm" onClick={handleResume}>
+                    <Play className="h-3.5 w-3.5" />
+                    Retomar
+                  </Button>
+                )}
+                <Button variant="danger" size="sm" onClick={handleStop}>
+                  <Square className="h-3.5 w-3.5" />
+                  Parar
                 </Button>
-              ) : (
-                <Button variant="secondary" size="sm" onClick={handleResume}>
-                  <Play className="h-3.5 w-3.5" />
-                  Retomar
-                </Button>
-              )}
-              <Button variant="danger" size="sm" onClick={handleStop}>
-                <Square className="h-3.5 w-3.5" />
-                Parar
-              </Button>
+              </div>
             </div>
           </div>
         )}
