@@ -128,7 +128,9 @@ export function TodayBoard({
           <Section title="Para hoje" count={board.todayTasks.length}>
             {board.todayTasks.length === 0 ? (
               <p className="text-ink-muted px-4 py-8 text-center text-sm">
-                {nothingToDo ? "Nada agendado para hoje." : "Hoje está limpo. Bom trabalho!"}
+                {nothingToDo
+                  ? "Nada agendado para hoje."
+                  : "Hoje está limpo. Bom trabalho!"}
               </p>
             ) : (
               board.todayTasks.map((task) => (
@@ -203,14 +205,7 @@ function DaySummary({
       <div className="flex items-center gap-4">
         <div className="relative h-24 w-24 shrink-0">
           <svg viewBox="0 0 80 80" className="h-full w-full -rotate-90" aria-hidden>
-            <circle
-              cx="40"
-              cy="40"
-              r={radius}
-              fill="none"
-              strokeWidth="7"
-              className="stroke-paper-sunk"
-            />
+            <circle cx="40" cy="40" r={radius} fill="none" strokeWidth="7" className="stroke-paper-sunk" />
             <circle
               cx="40"
               cy="40"
@@ -284,7 +279,7 @@ function MeetingsStrip({ meetings }: { meetings: MeetingSummary[] }) {
           <Link
             key={meeting.id}
             href={`/reunioes/${meeting.id}`}
-            className="border-line bg-surface hover:border-line-strong border-l-pine flex min-w-56 flex-col gap-1 rounded-[var(--radius-lg)] border border-l-4 px-4 py-3 transition-colors"
+            className="border-line bg-surface hover:border-line-strong flex min-w-56 flex-col gap-1 rounded-[var(--radius-lg)] border border-l-4 border-l-pine px-4 py-3 transition-colors"
           >
             <span className="text-pine font-mono text-xs tabular-nums">
               {meeting.scheduledTime ?? "—"}
@@ -381,10 +376,7 @@ function RoutineRow({ routine, date }: { routine: RoutineListItem; date: string 
 
   return (
     <div
-      className={cn(
-        "flex items-center gap-3 px-4 py-3 transition-opacity",
-        pending && "opacity-50",
-      )}
+      className={cn("flex items-center gap-3 px-4 py-3 transition-opacity", pending && "opacity-50")}
     >
       <CheckSquare
         size="sm"
