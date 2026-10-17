@@ -24,6 +24,7 @@ import { toggleRoutine } from "@/lib/actions/routines";
 import type { RoutineListItem } from "@/lib/data/routines";
 import type { MeetingSummary } from "@/lib/data/meetings";
 import { NO_SHIFT_LABEL, ROUTINE_SHIFTS } from "@/features/routines/shifts";
+import { RoutineFormDialog } from "@/features/routines/routine-form-dialog";
 import {
   createTask,
   deleteTask,
@@ -316,6 +317,7 @@ function ColumnHeader({
 
 function RoutinesColumn({ routines, date }: { routines: RoutineListItem[]; date: string }) {
   const done = routines.filter((routine) => routine.done).length;
+  const [creating, setCreating] = React.useState(false);
 
   const grouped = React.useMemo(
     () =>
@@ -330,11 +332,20 @@ function RoutinesColumn({ routines, date }: { routines: RoutineListItem[]; date:
     <div className="flex flex-col gap-6">
       <ColumnHeader icon={Repeat} title="Rotina" detail={`${done} de ${routines.length} feitas`} />
 
+      <Button variant="secondary" onClick={() => setCreating(true)} className="self-start">
+        <Plus className="h-4 w-4" />
+        Nova rotina
+      </Button>
+
+      {/* Montado só enquanto aberto: o formulário guarda cadência e dias em
+          estado, e remontar é o que garante que ele reabra limpo. */}
+      {creating && <RoutineFormDialog open onClose={() => setCreating(false)} />}
+
       {routines.length === 0 ? (
         <p className="border-line-strong text-ink-muted rounded-[var(--radius-lg)] border border-dashed px-4 py-8 text-center text-sm">
-          Nenhuma rotina para hoje.{" "}
+          Nenhuma rotina para hoje. Uma rotina nova só aparece aqui se a frequência incluir hoje.{" "}
           <Link href="/rotinas" className="text-accent hover:text-accent-hover underline">
-            Criar rotinas
+            Gerenciar rotinas
           </Link>
         </p>
       ) : (

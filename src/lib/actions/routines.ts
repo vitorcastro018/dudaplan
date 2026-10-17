@@ -143,4 +143,5 @@ export async function archiveRoutine(routineId: string): Promise<ActionResult> {
 
 function revalidate() {
   revalidatePath("/rotinas");
+  revalidatePath("/hoje");
 }
