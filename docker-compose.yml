@@ -49,6 +49,11 @@ services:
       NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:-}
       UPLOAD_DIR: ${UPLOAD_DIR:-/app/data/uploads}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-200}
+      # Resumo com IA das reuniões. Defina OPENAI_API_KEY em Environment
+      # Variables; sem ela o botão "Resumo com IA" avisa que falta a chave.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_TRANSCRIBE_MODEL: ${OPENAI_TRANSCRIBE_MODEL:-}
+      OPENAI_SUMMARY_MODEL: ${OPENAI_SUMMARY_MODEL:-}
     # Só `expose`, sem `ports:`. O proxy do Coolify (Traefik) alcança o container
     # pela rede interna do Docker, então não há por que publicar a porta no host
     # da VPS — e publicar é arriscado: se outro serviço (ou o deploy antigo do

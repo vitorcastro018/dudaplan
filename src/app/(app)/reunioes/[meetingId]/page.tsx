@@ -5,6 +5,7 @@ import { getProject, listProjectOptions } from "@/lib/data/projects";
 import { MeetingDetail } from "@/features/meetings/meeting-detail";
 import { MeetingActions } from "@/features/meetings/meeting-actions";
 import { MeetingAudio } from "@/features/meetings/meeting-audio";
+import { MeetingSummary } from "@/features/meetings/meeting-summary";
 
 export const dynamic = "force-dynamic";
 
@@ -52,9 +53,15 @@ export default async function MeetingPage({
       />
 
       {audioTab ? (
-        <MeetingAudio meetingId={meeting.id} recording={meeting.recording} />
+        <>
+          <MeetingAudio meetingId={meeting.id} recording={meeting.recording} />
+          <MeetingSummary meeting={meeting} />
+        </>
       ) : (
-        <MeetingDetail meeting={meeting} projectName={project?.name ?? null} />
+        <>
+          <MeetingDetail meeting={meeting} projectName={project?.name ?? null} />
+          {meeting.summary && <MeetingSummary meeting={meeting} />}
+        </>
       )}
     </div>
   );

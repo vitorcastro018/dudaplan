@@ -44,6 +44,9 @@ export interface MeetingSummary extends MeetingListItem {
 }
 
 export interface MeetingDetail extends MeetingListItem {
+  transcript: string | null;
+  summary: string | null;
+  summaryLabel: string | null;
   participants: MeetingParticipant[];
   recording: RecordingRow | null;
   scheduledLabel: string | null;
@@ -165,7 +168,7 @@ export async function getMeeting(meetingId: string): Promise<MeetingDetail | nul
   );
   if (!meeting) return null;
 
-  const [participants, recording] = await Promise.all([
+  const [participants, recording, ai] = await Promise.all([
     query<MeetingParticipant>("select id, name from meeting_participants where meeting_id = $1", [
       meetingId,
     ]),
@@ -174,10 +177,19 @@ export async function getMeeting(meetingId: string): Promise<MeetingDetail | nul
       "select * from recordings where meeting_id = $1 order by created_at desc limit 1",
       [meetingId],
     ),
+    // Fora de `MEETING_FIELDS` para a lista não carregar a transcrição inteira
+    // de cada reunião.
+    queryOne<{ transcript: string | null; summary: string | null; summarized_at: string | null }>(
+      "select transcript, summary, summarized_at from meetings where id = $1",
+      [meetingId],
+    ),
   ]);
 
   return {
     ...meeting,
+    transcript: ai?.transcript ?? null,
+    summary: ai?.summary ?? null,
+    summaryLabel: ai?.summarized_at ? formatDateTimeLabel(ai.summarized_at) : null,
     participants,
     recording,
     scheduledLabel: meeting.scheduled_at ? formatDateTimeLabel(meeting.scheduled_at) : null,

@@ -2,7 +2,7 @@
 
 Software pessoal, de uma pessoa só, para controle de projetos, tarefas, rotinas e reuniões.
 
-Hoje tem: login próprio, a tela **Hoje**, rotinas com turno e link, projetos (com problema, resultado esperado e três prazos) e tarefas, tudo editável, e reuniões com anotações e gravação ou anexo de áudio. A IA das reuniões (transcrição, ata, plano de ação) ainda não existe.
+Hoje tem: login próprio, a tela **Hoje**, rotinas com turno e link, projetos (com problema, resultado esperado e três prazos) e tarefas, tudo editável, e reuniões com anotações e gravação ou anexo de áudio. Na aba **Áudio** da reunião, o botão **Resumo com IA** transcreve o áudio e gera o resumo pela OpenAI; o resultado fica salvo na reunião. Precisa de `OPENAI_API_KEY` (áudio de até 25 MB). Ata e plano de ação ainda não existem.
 
 ## Stack
 

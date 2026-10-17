@@ -100,6 +100,11 @@ export type MeetingRow = {
   scheduled_at: string | null;
   duration_sec: number | null;
   status: MeetingStatus;
+  /** Transcrição do áudio, gerada pela IA. */
+  transcript: string | null;
+  /** Resumo em Markdown, gerado pela IA. Guardado: não se gera de novo ao abrir. */
+  summary: string | null;
+  summarized_at: string | null;
   archived_at: string | null;
   created_at: string;
   updated_at: string;

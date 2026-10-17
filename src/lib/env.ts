@@ -12,6 +12,13 @@ const envSchema = z.object({
   APP_SIGNUP_CODE: z.string().min(1).optional(),
   UPLOAD_DIR: z.string().default("./data/uploads"),
   MAX_UPLOAD_MB: z.coerce.number().default(200),
+  // Resumo com IA das reuniões. Sem chave o botão continua na tela e avisa o que
+  // falta, em vez de o recurso simplesmente sumir.
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  // `whisper-1` por padrão: não tem teto de duração (só os 25 MB do arquivo),
+  // ao contrário dos modelos gpt-4o-transcribe.
+  OPENAI_TRANSCRIBE_MODEL: z.string().default("whisper-1"),
+  OPENAI_SUMMARY_MODEL: z.string().default("gpt-4o-mini"),
 });
 
 // `next build` importa cada módulo de rota para coletar os dados das páginas, o
