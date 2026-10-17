@@ -122,3 +122,71 @@ export async function summarizeTranscript(input: {
   }
   return text.trim();
 }
+
+const IMPROVEMENT_PROMPT = `Você é um consultor de melhoria de processos. A partir da transcrição de uma reunião, identifique o processo de trabalho que foi descrito, desenhe-o como ele é hoje e proponha uma versão melhorada. Escreva em português do Brasil. Não invente etapas, ferramentas, números ou ganhos que a conversa não sustente: quando estimar um ganho, deixe claro que é uma estimativa.
+
+Responda SOMENTE com um JSON neste formato:
+{
+  "hasProcess": boolean,
+  "reason": string | null,
+  "overview": string | null,
+  "current": { "steps": Step[], "links": Link[] } | null,
+  "proposed": { "steps": Step[], "links": Link[] } | null,
+  "changes": Change[]
+}
+
+Step = { "id": string curto e único (ex.: "a1"), "label": string de até 8 palavras, "type": "start" | "step" | "decision" | "end", "status": "normal" | "problem" | "new" | "automated" | "changed" }
+Link = { "from": id, "to": id, "label": string | null }
+Change = { "title": string, "why": string (o problema que isso resolve), "gain": string (ganho esperado, em uma frase), "effort": "baixo" | "medio" | "alto" }
+
+Regras:
+- Se a reunião não descreve nenhum processo que dê para desenhar, responda hasProcess=false, explique em "reason", e use current=null, proposed=null, changes=[].
+- "overview": uma ou duas frases com o principal ganho da proposta.
+- Cada diagrama tem de 4 a 10 passos, começa em um "start" e termina em um "end". Toda "decision" tem ligações rotuladas (ex.: "Sim" / "Não").
+- No processo ATUAL use status "problem" nos passos que são gargalo, retrabalho ou manuais demais; os demais são "normal".
+- No processo SUGERIDO use "new" para passo criado, "automated" para passo automatizado, "changed" para passo alterado e "normal" para o que fica igual. Passos removidos simplesmente não aparecem.
+- "changes": uma entrada para cada mudança relevante entre o atual e o sugerido, da de maior impacto para a de menor.`;
+
+export async function suggestProcessImprovement(input: {
+  title: string;
+  participants: string[];
+  notes: string | null;
+  transcript: string;
+}): Promise<unknown> {
+  const key = apiKey();
+
+  const context = [
+    `Título da reunião: ${input.title}`,
+    input.participants.length > 0 ? `Participantes: ${input.participants.join(", ")}` : null,
+    input.notes ? `Anotações feitas pelo usuário:\n${input.notes}` : null,
+    `Transcrição:\n${input.transcript}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const response = await fetch(`${API}/chat/completions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: env.OPENAI_SUMMARY_MODEL,
+      temperature: 0.3,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: IMPROVEMENT_PROMPT },
+        { role: "user", content: context },
+      ],
+    }),
+  });
+  if (!response.ok) throw await failure(response);
+
+  const body = await response.json();
+  const text = body?.choices?.[0]?.message?.content;
+  if (typeof text !== "string") {
+    throw new AiError("A OpenAI não devolveu a sugestão. Tente de novo.");
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new AiError("A resposta da OpenAI veio num formato inválido. Tente de novo.");
+  }
+}
