@@ -6,6 +6,7 @@ import {
   formatTimeLabel,
   utcIsoToLocalDateTimeInput,
 } from "@/lib/date";
+import { parseImprovement, type ProcessImprovement } from "@/lib/ai/improvement";
 import type { MeetingRow, MeetingParticipantRow, RecordingRow } from "@/lib/types";
 
 const MEETING_FIELDS =
@@ -47,6 +48,8 @@ export interface MeetingDetail extends MeetingListItem {
   transcript: string | null;
   summary: string | null;
   summaryLabel: string | null;
+  improvement: ProcessImprovement | null;
+  improvementLabel: string | null;
   participants: MeetingParticipant[];
   recording: RecordingRow | null;
   scheduledLabel: string | null;
@@ -179,8 +182,14 @@ export async function getMeeting(meetingId: string): Promise<MeetingDetail | nul
     ),
     // Fora de `MEETING_FIELDS` para a lista não carregar a transcrição inteira
     // de cada reunião.
-    queryOne<{ transcript: string | null; summary: string | null; summarized_at: string | null }>(
-      "select transcript, summary, summarized_at from meetings where id = $1",
+    queryOne<{
+      transcript: string | null;
+      summary: string | null;
+      summarized_at: string | null;
+      improvement: unknown;
+      improved_at: string | null;
+    }>(
+      "select transcript, summary, summarized_at, improvement, improved_at from meetings where id = $1",
       [meetingId],
     ),
   ]);
@@ -190,6 +199,8 @@ export async function getMeeting(meetingId: string): Promise<MeetingDetail | nul
     transcript: ai?.transcript ?? null,
     summary: ai?.summary ?? null,
     summaryLabel: ai?.summarized_at ? formatDateTimeLabel(ai.summarized_at) : null,
+    improvement: ai?.improvement ? parseImprovement(ai.improvement) : null,
+    improvementLabel: ai?.improved_at ? formatDateTimeLabel(ai.improved_at) : null,
     participants,
     recording,
     scheduledLabel: meeting.scheduled_at ? formatDateTimeLabel(meeting.scheduled_at) : null,

@@ -105,6 +105,9 @@ export type MeetingRow = {
   /** Resumo em Markdown, gerado pela IA. Guardado: não se gera de novo ao abrir. */
   summary: string | null;
   summarized_at: string | null;
+  /** Sugestão de melhoria de processo (JSON), gerada pela IA. */
+  improvement: unknown;
+  improved_at: string | null;
   archived_at: string | null;
   created_at: string;
   updated_at: string;
