@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { listProjects } from "@/lib/data/projects";
+import { listClientOptions } from "@/lib/data/clients";
 import { NewProjectDialog } from "@/features/projects/new-project-dialog";
 import { ProjectDeadlines } from "@/features/projects/project-deadlines";
 import { PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE } from "@/features/projects/status";
@@ -10,7 +11,8 @@ import { PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE } from "@/features/projects/s
 export const dynamic = "force-dynamic";
 
 export default async function ProjetosPage() {
-  const projects = await listProjects();
+  const [projects, clients] = await Promise.all([listProjects(), listClientOptions()]);
+  const clientName = new Map(clients.map((client) => [client.id, client.name]));
 
   return (
     <div>
@@ -41,6 +43,12 @@ export default async function ProjetosPage() {
                   {PROJECT_STATUS_LABEL[project.status]}
                 </Badge>
               </div>
+
+              {project.client_id && clientName.has(project.client_id) && (
+                <p className="text-accent-hover -mt-1 truncate text-xs font-medium">
+                  {clientName.get(project.client_id)}
+                </p>
+              )}
 
               <div className="flex flex-col gap-2">
                 <p className="text-ink-muted line-clamp-2 text-sm">

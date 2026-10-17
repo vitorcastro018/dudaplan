@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { getProject, listProjectOptions } from "@/lib/data/projects";
+import Link from "next/link";
+import { listClientOptions } from "@/lib/data/clients";
 import { listProjectTasks } from "@/lib/data/tasks";
 import { listProjectMeetings } from "@/lib/data/meetings";
 import { ProjectTasks } from "@/features/projects/project-tasks";
@@ -23,11 +25,13 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
   const project = await getProject(projectId);
   if (!project) notFound();
 
-  const [tasks, meetings, projects] = await Promise.all([
+  const [tasks, meetings, projects, clients] = await Promise.all([
     listProjectTasks(project.id),
     listProjectMeetings(project.id),
     listProjectOptions(),
+    listClientOptions(),
   ]);
+  const client = clients.find((entry) => entry.id === project.client_id);
 
   // Sugestão de data/hora calculada no servidor, para respeitar o APP_TIMEZONE
   // em vez do fuso do navegador — igual à tela /reunioes.
@@ -36,6 +40,14 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
   return (
     <div className="flex flex-col gap-8">
       <div>
+        {client && (
+          <Link
+            href={`/clientes/${client.id}`}
+            className="text-accent-hover hover:text-accent mb-2 inline-block text-xs font-medium"
+          >
+            {client.name}
+          </Link>
+        )}
         <div className="flex items-start justify-between gap-4">
           <h1 className="font-display text-ink text-3xl font-medium tracking-tight">
             {project.name}

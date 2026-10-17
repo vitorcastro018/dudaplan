@@ -113,6 +113,31 @@ begin
 end;
 $$;
 
+-- clientes: projeto, tarefa e reunião apontam para o cliente; apagá-lo solta
+-- os três sem apagá-los nem zerar user_id; cliente de outra conta é recusado
+insert into clients (id, user_id, name)
+  values ('eeeeeeee-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Cliente A');
+
+insert into projects (id, user_id, name, problem, outcome, deadline_optimistic, deadline_mediocre, deadline_realistic, client_id)
+  values ('aaaaaaaa-0000-0000-0000-0000000000c1', '11111111-1111-1111-1111-111111111111', 'P', 'p', 'o',
+          current_date, current_date, current_date, 'eeeeeeee-0000-0000-0000-000000000001');
+insert into tasks (id, user_id, title, client_id)
+  values ('dddddddd-0000-0000-0000-0000000000c1', '11111111-1111-1111-1111-111111111111', 'T', 'eeeeeeee-0000-0000-0000-000000000001');
+insert into meetings (id, user_id, title, client_id)
+  values ('cccccccc-0000-0000-0000-0000000000c1', '11111111-1111-1111-1111-111111111111', 'M', 'eeeeeeee-0000-0000-0000-000000000001');
+
+delete from clients where id = 'eeeeeeee-0000-0000-0000-000000000001';
+
+do $$
+begin
+  if (select count(*) from projects where id = 'aaaaaaaa-0000-0000-0000-0000000000c1' and client_id is null) <> 1
+     or (select count(*) from tasks where id = 'dddddddd-0000-0000-0000-0000000000c1' and client_id is null) <> 1
+     or (select count(*) from meetings where id = 'cccccccc-0000-0000-0000-0000000000c1' and client_id is null) <> 1 then
+    raise exception 'apagar o cliente devia soltar projeto, tarefa e reunião, sem apagá-los';
+  end if;
+end;
+$$;
+
 -- apagar a conta leva todo o conteúdo
 delete from users where id = '11111111-1111-1111-1111-111111111111';
 

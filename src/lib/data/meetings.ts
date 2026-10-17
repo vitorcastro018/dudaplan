@@ -9,12 +9,13 @@ import {
 import type { MeetingRow, MeetingParticipantRow, RecordingRow } from "@/lib/types";
 
 const MEETING_FIELDS =
-  "id, project_id, title, notes, scheduled_at, duration_sec, status, created_at, updated_at";
+  "id, project_id, client_id, title, notes, scheduled_at, duration_sec, status, created_at, updated_at";
 
 export type MeetingListItem = Pick<
   MeetingRow,
   | "id"
   | "project_id"
+  | "client_id"
   | "title"
   | "notes"
   | "scheduled_at"
@@ -75,6 +76,22 @@ export async function listProjectMeetings(projectId: string): Promise<MeetingSum
       where user_id = $1 and project_id = $2 and archived_at is null
       order by scheduled_at desc nulls last, created_at desc`,
     [userId, projectId],
+  );
+
+  return enrichMeetings(userId, meetings);
+}
+
+/** As reuniões de um cliente: as ligadas direto a ele e as dos projetos dele. */
+export async function listClientMeetings(clientId: string): Promise<MeetingSummary[]> {
+  const userId = await requireUser();
+
+  const meetings = await query<MeetingListItem>(
+    `select ${MEETING_FIELDS} from meetings
+      where user_id = $1 and archived_at is null
+        and (client_id = $2
+             or project_id in (select id from projects where client_id = $2 and user_id = $1))
+      order by scheduled_at desc nulls last, created_at desc`,
+    [userId, clientId],
   );
 
   return enrichMeetings(userId, meetings);

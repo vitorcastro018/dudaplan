@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarCheck, FolderKanban, ListChecks, LogOut, Mic, Repeat } from "lucide-react";
+import {
+  Building2,
+  CalendarCheck,
+  FolderKanban,
+  ListChecks,
+  LogOut,
+  Mic,
+  Repeat,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logout } from "@/app/login/actions";
 
@@ -40,6 +48,12 @@ export function Sidebar({ projects }: { projects: SidebarProject[] }) {
           icon={Repeat}
           label="Rotinas"
           active={pathname.startsWith("/rotinas")}
+        />
+        <NavLink
+          href="/clientes"
+          icon={Building2}
+          label="Clientes"
+          active={pathname.startsWith("/clientes")}
         />
         <NavLink
           href="/projetos"

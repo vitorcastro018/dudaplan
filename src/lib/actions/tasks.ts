@@ -14,6 +14,7 @@ function revalidate() {
   revalidatePath("/hoje");
   revalidatePath("/tarefas");
   revalidatePath("/projetos", "layout");
+  revalidatePath("/clientes", "layout");
 }
 
 /**
@@ -40,6 +41,7 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
   const parsed = createTaskSchema.safeParse({
     title: formData.get("title"),
     projectId: formData.get("projectId") || null,
+    clientId: formData.get("clientId") || null,
     scheduledDate: formData.get("scheduledDate") || null,
     priority: formData.get("priority") || undefined,
   });
@@ -52,8 +54,12 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
 
   try {
     await query(
-      `insert into tasks (user_id, title, project_id, status, priority, scheduled_date, due_date)
-       values ($1, $2, $3, $4, $5, $6, $7)`,
+      // Sem cliente explícito, a tarefa de um projeto herda o cliente dele.
+      `insert into tasks
+         (user_id, title, project_id, client_id, status, priority, scheduled_date, due_date)
+       values ($1, $2, $3,
+               coalesce($8::uuid, (select client_id from projects where id = $3 and user_id = $1)),
+               $4, $5, $6, $7)`,
       [
         userId,
         parsed.data.title,
@@ -62,6 +68,7 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
         parsed.data.priority,
         parsed.data.scheduledDate ?? null,
         parsed.data.dueDate ?? null,
+        parsed.data.clientId ?? null,
       ],
     );
   } catch (error) {
@@ -113,6 +120,7 @@ export async function updateTask(taskId: string, input: unknown): Promise<Action
   if (data.priority !== undefined) patch.priority = data.priority;
   if (data.energy !== undefined) patch.energy = data.energy;
   if (data.projectId !== undefined) patch.project_id = data.projectId;
+  if (data.clientId !== undefined) patch.client_id = data.clientId;
   if (data.scheduledDate !== undefined) patch.scheduled_date = data.scheduledDate;
   if (data.dueDate !== undefined) patch.due_date = data.dueDate;
   if (data.estimateMinutes !== undefined) patch.estimate_minutes = data.estimateMinutes;

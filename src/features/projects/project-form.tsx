@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select, Label } from "@/components/ui/input";
 import { DateField } from "@/components/ui/date-field";
 import { todayKeyLocal } from "@/lib/date-keys";
+import { ClientSelectOptions } from "@/components/layout/client-options";
 import { createProject, updateProject } from "@/lib/actions/projects";
 import { PROJECT_DEADLINES } from "@/features/projects/deadlines";
 import { PROJECT_STATUS_LABEL } from "@/features/projects/status";
@@ -50,6 +51,7 @@ export function ProjectForm({
   onDone,
   onCancel,
   onCreated,
+  defaultClientId,
 }: {
   /** Ausente = criar. */
   project?: ProjectListItem;
@@ -57,6 +59,8 @@ export function ProjectForm({
   onCancel: () => void;
   /** Chamado com o id do projeto recém-criado, no modo criar. */
   onCreated?: (projectId: string) => void;
+  /** Cliente já selecionado ao criar — quando o projeto nasce da página de um cliente. */
+  defaultClientId?: string;
 }) {
   const editing = project !== undefined;
   const [pending, startTransition] = React.useTransition();
@@ -94,6 +98,7 @@ export function ProjectForm({
         const value = (key: string) => String(formData.get(key) ?? "").trim();
         const result = await updateProject(project.id, {
           name: value("name"),
+          clientId: value("clientId") || null,
           problem: value("problem"),
           outcome: value("outcome"),
           status: value("status") as ProjectStatus,
@@ -137,6 +142,17 @@ export function ProjectForm({
           maxLength={200}
           autoFocus
         />
+      </div>
+
+      <div>
+        <Label htmlFor="project-client">Cliente</Label>
+        <Select
+          id="project-client"
+          name="clientId"
+          defaultValue={project?.client_id ?? defaultClientId ?? ""}
+        >
+          <ClientSelectOptions value={project?.client_id ?? defaultClientId ?? ""} />
+        </Select>
       </div>
 
       <div>

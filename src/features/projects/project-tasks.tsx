@@ -14,14 +14,24 @@ import type { TaskListItem } from "@/lib/data/tasks";
 import { TASK_STATUS_LABEL, TASK_STATUS_TONE } from "@/features/tasks/labels";
 import { EditTaskDialog, type TaskProjectOption } from "@/features/tasks/edit-task-dialog";
 
+/**
+ * As tarefas de um projeto ou, com `clientId`, de um cliente. Quem cria por
+ * aqui já nasce ligada ao dono da página.
+ */
 export function ProjectTasks({
   projectId,
+  clientId,
   tasks,
   projects,
+  placeholder = "Nova tarefa deste projeto",
+  emptyDescription = "Adicione a primeira tarefa deste projeto.",
 }: {
-  projectId: string;
+  projectId?: string;
+  clientId?: string;
   tasks: TaskListItem[];
   projects: TaskProjectOption[];
+  placeholder?: string;
+  emptyDescription?: string;
 }) {
   const formRef = React.useRef<HTMLFormElement>(null);
   const [pending, startTransition] = React.useTransition();
@@ -61,14 +71,9 @@ export function ProjectTasks({
       <h2 className="font-display text-ink text-lg font-medium tracking-tight">Tarefas</h2>
 
       <form ref={formRef} action={handleCreate} className="flex gap-2">
-        <input type="hidden" name="projectId" value={projectId} />
-        <Input
-          name="title"
-          placeholder="Nova tarefa deste projeto"
-          required
-          maxLength={300}
-          className="flex-1"
-        />
+        {projectId && <input type="hidden" name="projectId" value={projectId} />}
+        {clientId && <input type="hidden" name="clientId" value={clientId} />}
+        <Input name="title" placeholder={placeholder} required maxLength={300} className="flex-1" />
         <Button type="submit" disabled={pending}>
           <Plus className="h-4 w-4" />
           Adicionar
@@ -76,7 +81,7 @@ export function ProjectTasks({
       </form>
 
       {optimisticTasks.length === 0 ? (
-        <EmptyState title="Sem tarefas" description="Adicione a primeira tarefa deste projeto." />
+        <EmptyState title="Sem tarefas" description={emptyDescription} />
       ) : (
         <div className="border-line bg-surface divide-line divide-y rounded-[var(--radius-lg)] border">
           {optimisticTasks.map((task) => {

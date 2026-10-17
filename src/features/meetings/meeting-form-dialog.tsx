@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select, Label } from "@/components/ui/input";
+import { ClientSelectOptions } from "@/components/layout/client-options";
 import { createMeeting, updateMeeting } from "@/lib/actions/meetings";
 import { ProjectForm } from "@/features/projects/project-form";
 import type { MeetingDetail } from "@/lib/data/meetings";
@@ -29,6 +30,7 @@ export function MeetingFormDialog({
   /** Projeto já selecionado ao criar — usado quando a reunião nasce da página
    *  de um projeto. Ignorado ao editar, que segue o projeto da própria reunião. */
   defaultProjectId,
+  defaultClientId,
 }: {
   /** Ausente = criar. */
   meeting?: MeetingDetail;
@@ -37,6 +39,8 @@ export function MeetingFormDialog({
   onClose: () => void;
   defaultScheduledAt?: string;
   defaultProjectId?: string;
+  /** Cliente já selecionado ao criar — quando a reunião nasce da página de um cliente. */
+  defaultClientId?: string;
 }) {
   const editing = meeting !== undefined;
   const router = useRouter();
@@ -64,6 +68,7 @@ export function MeetingFormDialog({
           title: value("title"),
           scheduledAt: value("scheduledAt") || null,
           projectId: value("projectId") || null,
+          clientId: value("clientId") || null,
           notes: value("notes") || null,
           participants: String(formData.get("participants") ?? ""),
         });
@@ -123,6 +128,7 @@ export function MeetingFormDialog({
           newProjectName={newProjectName}
           participantsDefault={participantsDefault}
           defaultScheduledAt={defaultScheduledAt}
+          defaultClientId={defaultClientId}
           pending={pending}
           onProjectChange={handleProjectChange}
           onSubmit={handleSubmit}
@@ -153,6 +159,7 @@ function MeetingFields({
   newProjectName,
   participantsDefault,
   defaultScheduledAt,
+  defaultClientId,
   pending,
   onProjectChange,
   onSubmit,
@@ -166,6 +173,7 @@ function MeetingFields({
   newProjectName: string | null;
   participantsDefault?: string;
   defaultScheduledAt?: string;
+  defaultClientId?: string;
   pending: boolean;
   onProjectChange: (value: string) => void;
   onSubmit: (formData: FormData) => void;
@@ -218,6 +226,22 @@ function MeetingFields({
           ))}
           <option value={NEW_PROJECT}>+ Criar novo projeto</option>
         </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="meeting-client">Cliente</Label>
+        <Select
+          id="meeting-client"
+          name="clientId"
+          defaultValue={meeting?.client_id ?? defaultClientId ?? ""}
+        >
+          <ClientSelectOptions value={meeting?.client_id ?? defaultClientId ?? ""} />
+        </Select>
+        {!editing && (
+          <p className="text-ink-muted mt-1.5 text-xs">
+            Sem cliente escolhido, a reunião de um projeto fica com o cliente dele.
+          </p>
+        )}
       </div>
 
       <div>

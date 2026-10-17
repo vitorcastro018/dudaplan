@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Dialog, ConfirmDialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select, Label } from "@/components/ui/input";
+import { ClientSelectOptions } from "@/components/layout/client-options";
 import { deleteTask, updateTask } from "@/lib/actions/tasks";
 import { TASK_PRIORITY_LABEL, TASK_STATUS_LABEL } from "@/features/tasks/labels";
 import type { TaskListItem } from "@/lib/data/tasks";
@@ -57,6 +58,7 @@ export function EditTaskDialog({
       priority: value("priority") as TaskPriority,
       energy: value("energy") || null,
       projectId: value("projectId") || null,
+      clientId: value("clientId") || null,
       scheduledDate: value("scheduledDate") || null,
       dueDate: value("dueDate") || null,
       estimateMinutes: value("estimateMinutes") || null,
@@ -177,6 +179,13 @@ export function EditTaskDialog({
                   {project.name}
                 </option>
               ))}
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor={`clientId-${task.id}`}>Cliente</Label>
+            <Select id={`clientId-${task.id}`} name="clientId" defaultValue={task.client_id ?? ""}>
+              <ClientSelectOptions value={task.client_id ?? ""} />
             </Select>
           </div>
 

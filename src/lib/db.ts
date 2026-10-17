@@ -64,7 +64,7 @@ export async function transaction<T>(fn: (client: pg.PoolClient) => Promise<T>):
 }
 
 /** Tabelas que `updateOwned` aceita — o nome entra no SQL, então é lista fechada. */
-type OwnedTable = "tasks" | "projects" | "meetings" | "routines";
+type OwnedTable = "tasks" | "projects" | "meetings" | "routines" | "clients";
 
 /**
  * UPDATE de uma linha do usuário a partir de um objeto parcial.

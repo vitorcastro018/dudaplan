@@ -15,6 +15,8 @@ export type CreateMeetingResult = { ok: true; id: string } | { ok: false; error:
 
 function revalidate() {
   revalidatePath("/reunioes", "layout");
+  revalidatePath("/clientes", "layout");
+  revalidatePath("/hoje");
 }
 
 function readForm(formData: FormData) {
@@ -22,6 +24,7 @@ function readForm(formData: FormData) {
     title: formData.get("title"),
     scheduledAt: formData.get("scheduledAt") || null,
     projectId: formData.get("projectId") || null,
+    clientId: formData.get("clientId") || null,
     notes: formData.get("notes") || null,
     participants: formData.get("participants") || null,
   };
@@ -56,14 +59,18 @@ export async function createMeeting(formData: FormData): Promise<CreateMeetingRe
   try {
     const id = await transaction(async (client) => {
       const created = await client.query<{ id: string }>(
-        `insert into meetings (user_id, title, project_id, notes, scheduled_at)
-         values ($1, $2, $3, $4, $5) returning id`,
+        // Sem cliente explícito, a reunião de um projeto herda o cliente dele.
+        `insert into meetings (user_id, title, project_id, client_id, notes, scheduled_at)
+         values ($1, $2, $3,
+                 coalesce($6::uuid, (select client_id from projects where id = $3 and user_id = $1)),
+                 $4, $5) returning id`,
         [
           userId,
           parsed.data.title,
           parsed.data.projectId ?? null,
           parsed.data.notes ?? null,
           parsed.data.scheduledAt ? localDateTimeToUtcIso(parsed.data.scheduledAt) : null,
+          parsed.data.clientId ?? null,
         ],
       );
       const meetingId = created.rows[0].id;
@@ -93,6 +100,7 @@ export async function updateMeeting(meetingId: string, input: unknown): Promise<
 
   if (data.title !== undefined) patch.title = data.title;
   if (data.projectId !== undefined) patch.project_id = data.projectId;
+  if (data.clientId !== undefined) patch.client_id = data.clientId;
   if (data.notes !== undefined) patch.notes = data.notes;
   if (data.scheduledAt !== undefined) {
     patch.scheduled_at = data.scheduledAt ? localDateTimeToUtcIso(data.scheduledAt) : null;

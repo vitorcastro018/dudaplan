@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/session";
 import { listProjectOptions } from "@/lib/data/projects";
+import { listClientOptions } from "@/lib/data/clients";
 import { AppShell } from "@/components/layout/app-shell";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -7,7 +8,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // lista da barra lateral: uma não depende do retorno da outra, e as duas só
   // precisam do cookie da sessão, que já está presente. Encadeá-las somava os
   // dois tempos de banco a cada troca de página, à toa.
-  const [, projects] = await Promise.all([requireUser(), listProjectOptions()]);
+  const [, projects, clients] = await Promise.all([
+    requireUser(),
+    listProjectOptions(),
+    listClientOptions(),
+  ]);
 
-  return <AppShell projects={projects}>{children}</AppShell>;
+  return (
+    <AppShell projects={projects} clients={clients}>
+      {children}
+    </AppShell>
+  );
 }

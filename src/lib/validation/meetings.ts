@@ -3,6 +3,7 @@ import { z } from "zod";
 const titleField = z.string().trim().min(1, "Dê um título à reunião.").max(300);
 const notesField = z.string().trim().max(20000).nullable().optional();
 const projectIdField = z.string().uuid("Projeto inválido.").nullable().optional();
+const clientIdField = z.string().uuid("Cliente inválido.").nullable().optional();
 
 /** "AAAA-MM-DDTHH:MM", como o `<input type="datetime-local">` devolve. O
  *  segundo e o fuso ficam de fora: o campo não os produz, e a conversão para
@@ -44,6 +45,7 @@ export const createMeetingSchema = z.object({
   title: titleField,
   scheduledAt: scheduledAtField,
   projectId: projectIdField,
+  clientId: clientIdField,
   notes: notesField,
   participants: participantsField,
 });
@@ -56,6 +58,7 @@ export const updateMeetingSchema = z.object({
   title: titleField.optional(),
   scheduledAt: scheduledAtField,
   projectId: projectIdField,
+  clientId: clientIdField,
   notes: notesField,
   participants: participantsField,
 });

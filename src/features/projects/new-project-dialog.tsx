@@ -7,7 +7,7 @@ import { ProjectFormDialog } from "@/features/projects/project-form-dialog";
 
 /** Botão "Novo projeto" do cabeçalho de `/projetos`. O formulário em si é o
  *  mesmo da edição — ver `project-form-dialog.tsx`. */
-export function NewProjectDialog() {
+export function NewProjectDialog({ defaultClientId }: { defaultClientId?: string }) {
   const [open, setOpen] = React.useState(false);
 
   return (
@@ -20,7 +20,9 @@ export function NewProjectDialog() {
       {/* Montado só enquanto aberto: o formulário guarda início e prazos em
           estado e os campos de texto são não-controlados, então remontar é o
           que garante que ele reabra limpo depois de um cancelamento. */}
-      {open && <ProjectFormDialog open onClose={() => setOpen(false)} />}
+      {open && (
+        <ProjectFormDialog open onClose={() => setOpen(false)} defaultClientId={defaultClientId} />
+      )}
     </>
   );
 }

@@ -12,10 +12,25 @@ export type RoutineCadence = "daily" | "weekdays" | "weekly" | "custom";
 export type RoutineShift = "morning" | "afternoon" | "night";
 export type MeetingStatus = "scheduled" | "recording" | "processing" | "ready" | "failed";
 
+export type ClientRow = {
+  id: string;
+  user_id: string;
+  name: string;
+  /** Quem é o cliente, o que faz, combinados gerais. Texto livre. */
+  description: string | null;
+  /** Contato principal (nome, e-mail, telefone). Texto livre. */
+  contact: string | null;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type TaskRow = {
   id: string;
   user_id: string;
   project_id: string | null;
+  /** Cliente direto. Tarefa de projeto de um cliente herda o dele na criação. */
+  client_id: string | null;
   title: string;
   status: TaskStatus;
   priority: TaskPriority;
@@ -34,6 +49,7 @@ export type TaskRow = {
 export type ProjectRow = {
   id: string;
   user_id: string;
+  client_id: string | null;
   name: string;
   /** "por que este projeto existe" — obrigatório e não vazio. */
   problem: string;
@@ -77,6 +93,7 @@ export type MeetingRow = {
   id: string;
   user_id: string;
   project_id: string | null;
+  client_id: string | null;
   title: string;
   /** Anotações em texto livre, renderizadas como Markdown na tela. */
   notes: string | null;

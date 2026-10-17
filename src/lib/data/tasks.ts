@@ -9,12 +9,13 @@ import type { TaskRow } from "@/lib/types";
 const OPEN = `status in ('backlog','todo','in_progress','waiting') and archived_at is null`;
 
 const TASK_FIELDS =
-  "id, project_id, title, status, priority, energy, scheduled_date, due_date, blocked_reason, estimate_minutes, position, completed_at, created_at";
+  "id, project_id, client_id, title, status, priority, energy, scheduled_date, due_date, blocked_reason, estimate_minutes, position, completed_at, created_at";
 
 export type TaskListItem = Pick<
   TaskRow,
   | "id"
   | "project_id"
+  | "client_id"
   | "title"
   | "status"
   | "priority"
@@ -107,5 +108,22 @@ export async function listProjectTasks(projectId: string): Promise<TaskListItem[
       where user_id = $1 and project_id = $2 and archived_at is null
       order by status, position`,
     [userId, projectId],
+  );
+}
+
+/**
+ * As tarefas de um cliente: as ligadas direto a ele e as dos projetos dele.
+ * `client_id` da tarefa já é herdado do projeto na criação, mas projeto que
+ * trocou de cliente depois deixa tarefas com o vínculo antigo — por isso o `or`.
+ */
+export async function listClientTasks(clientId: string): Promise<TaskListItem[]> {
+  const userId = await requireUser();
+  return query<TaskListItem>(
+    `select ${TASK_FIELDS} from tasks
+      where user_id = $1 and archived_at is null
+        and (client_id = $2
+             or project_id in (select id from projects where client_id = $2 and user_id = $1))
+      order by completed_at asc nulls first, position, created_at`,
+    [userId, clientId],
   );
 }

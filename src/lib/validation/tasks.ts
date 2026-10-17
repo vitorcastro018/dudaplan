@@ -22,6 +22,7 @@ export const taskEnergySchema = z.enum(["low", "medium", "high"]);
 export const createTaskSchema = z.object({
   title: z.string().trim().min(1, "Dê um título à tarefa.").max(300),
   projectId: z.string().uuid().nullable().optional(),
+  clientId: z.string().uuid().nullable().optional(),
   status: taskStatusSchema.default("todo"),
   priority: taskPrioritySchema.default("medium"),
   energy: taskEnergySchema.nullable().optional(),
@@ -37,6 +38,7 @@ export const createTaskSchema = z.object({
 export const updateTaskSchema = z.object({
   title: z.string().trim().min(1).max(300).optional(),
   projectId: z.string().uuid().nullable().optional(),
+  clientId: z.string().uuid().nullable().optional(),
   status: taskStatusSchema.optional(),
   priority: taskPrioritySchema.optional(),
   energy: taskEnergySchema.nullable().optional(),

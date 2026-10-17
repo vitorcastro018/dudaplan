@@ -16,11 +16,13 @@ export function ProjectFormDialog({
   project,
   open,
   onClose,
+  defaultClientId,
 }: {
   /** Ausente = criar. */
   project?: ProjectListItem;
   open: boolean;
   onClose: () => void;
+  defaultClientId?: string;
 }) {
   const editing = project !== undefined;
 
@@ -32,7 +34,12 @@ export function ProjectFormDialog({
       description={editing ? undefined : "Todos os campos são obrigatórios."}
       className="max-h-[85dvh] overflow-y-auto"
     >
-      <ProjectForm project={project} onDone={onClose} onCancel={onClose} />
+      <ProjectForm
+        project={project}
+        onDone={onClose}
+        onCancel={onClose}
+        defaultClientId={defaultClientId}
+      />
     </Dialog>
   );
 }

@@ -13,19 +13,23 @@ import {
 import type { MeetingSummary } from "@/lib/data/meetings";
 
 /**
- * As reuniões deste projeto, no mesmo lugar em que as tarefas aparecem.
+ * As reuniões deste projeto (ou, com `clientId`, deste cliente), no mesmo lugar em que as tarefas aparecem.
  *
  * O card já leva ao detalhe da reunião, então não há edição em linha aqui — o
- * botão só cria, com o projeto atual pré-selecionado no formulário.
+ * botão só cria, com o projeto ou cliente atual pré-selecionado no formulário.
  */
 export function ProjectMeetings({
   projectId,
+  clientId,
   meetings,
   projects,
   /** Data/hora sugerida no formulário, calculada no servidor pelo APP_TIMEZONE. */
   defaultScheduledAt,
+  emptyDescription = "Registre a primeira reunião deste projeto.",
 }: {
-  projectId: string;
+  projectId?: string;
+  clientId?: string;
+  emptyDescription?: string;
   meetings: MeetingSummary[];
   projects: MeetingProjectOption[];
   defaultScheduledAt: string;
@@ -43,7 +47,7 @@ export function ProjectMeetings({
       </div>
 
       {meetings.length === 0 ? (
-        <EmptyState title="Sem reuniões" description="Registre a primeira reunião deste projeto." />
+        <EmptyState title="Sem reuniões" description={emptyDescription} />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {meetings.map((meeting) => (
@@ -88,6 +92,7 @@ export function ProjectMeetings({
           onClose={() => setCreating(false)}
           defaultScheduledAt={defaultScheduledAt}
           defaultProjectId={projectId}
+          defaultClientId={clientId}
         />
       )}
     </section>

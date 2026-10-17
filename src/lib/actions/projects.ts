@@ -51,8 +51,11 @@ const outcomeField = z
   .min(1, "Descreva como você saberá que o projeto terminou.")
   .max(500);
 
+const clientIdField = z.string().uuid("Cliente inválido.").nullable().optional();
+
 const createProjectSchema = z.object({
   name: nameField,
+  clientId: clientIdField,
   problem: problemField,
   outcome: outcomeField,
   status: projectStatusSchema.default("active"),
@@ -70,6 +73,7 @@ const createProjectSchema = z.object({
 // Mesma armadilha documentada em `src/lib/validation/tasks.ts`.
 const updateProjectSchema = z.object({
   name: nameField.optional(),
+  clientId: clientIdField,
   problem: problemField.optional(),
   outcome: outcomeField.optional(),
   status: projectStatusSchema.optional(),
@@ -85,11 +89,13 @@ function revalidate() {
   revalidatePath("/tarefas");
   // O nome do projeto aparece na lista e no formulário de reuniões.
   revalidatePath("/reunioes", "layout");
+  revalidatePath("/clientes", "layout");
 }
 
 function readProjectForm(formData: FormData) {
   return {
     name: formData.get("name"),
+    clientId: formData.get("clientId") || null,
     problem: formData.get("problem"),
     outcome: formData.get("outcome"),
     status: formData.get("status") || undefined,
@@ -113,8 +119,8 @@ export async function createProject(formData: FormData): Promise<CreateProjectRe
     const created = await queryOne<{ id: string }>(
       `insert into projects
          (user_id, name, problem, outcome, status, start_date,
-          deadline_optimistic, deadline_mediocre, deadline_realistic)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          deadline_optimistic, deadline_mediocre, deadline_realistic, client_id)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        returning id`,
       [
         userId,
@@ -126,6 +132,7 @@ export async function createProject(formData: FormData): Promise<CreateProjectRe
         parsed.data.deadlineOptimistic,
         parsed.data.deadlineMediocre,
         parsed.data.deadlineRealistic,
+        parsed.data.clientId ?? null,
       ],
     );
 
@@ -151,6 +158,7 @@ export async function updateProject(projectId: string, input: unknown): Promise<
   const { data } = parsed;
 
   if (data.name !== undefined) patch.name = data.name;
+  if (data.clientId !== undefined) patch.client_id = data.clientId;
   if (data.problem !== undefined) patch.problem = data.problem;
   if (data.outcome !== undefined) patch.outcome = data.outcome;
   if (data.startDate !== undefined) patch.start_date = data.startDate;

@@ -3,11 +3,12 @@ import { requireUser } from "@/lib/session";
 import type { ProjectRow, ProjectStatus } from "@/lib/types";
 
 const PROJECT_FIELDS =
-  "id, name, problem, outcome, status, start_date, deadline_optimistic, deadline_mediocre, deadline_realistic, completed_at, position, created_at";
+  "id, client_id, name, problem, outcome, status, start_date, deadline_optimistic, deadline_mediocre, deadline_realistic, completed_at, position, created_at";
 
 export type ProjectListItem = Pick<
   ProjectRow,
   | "id"
+  | "client_id"
   | "name"
   | "problem"
   | "outcome"
@@ -21,14 +22,21 @@ export type ProjectListItem = Pick<
   | "created_at"
 >;
 
-export async function listProjects(status?: ProjectStatus): Promise<ProjectListItem[]> {
+export async function listProjects(
+  status?: ProjectStatus,
+  clientId?: string,
+): Promise<ProjectListItem[]> {
   const userId = await requireUser();
 
   const params: unknown[] = [userId];
   let filter = "";
   if (status) {
     params.push(status);
-    filter = "and status = $2";
+    filter += `and status = $${params.length} `;
+  }
+  if (clientId) {
+    params.push(clientId);
+    filter += `and client_id = $${params.length}`;
   }
 
   return query<ProjectListItem>(
