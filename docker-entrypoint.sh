@@ -5,13 +5,14 @@ set -e
 # validação de env estoura no primeiro request e o container entra em loop de
 # restart reportando um erro de Zod no meio de um stack trace de render — em vez
 # de dizer, na primeira linha do log, qual variável está faltando.
-if [ -z "$DATABASE_URL" ]; then
-  echo "ERRO: falta a variável de ambiente DATABASE_URL." >&2
+if [ -z "$DATABASE_URL" ] && { [ -z "$PGHOST" ] || [ -z "$PGPASSWORD" ]; }; then
+  echo "ERRO: falta configurar a conexão com o Postgres." >&2
   echo "" >&2
-  echo "Formato: postgres://usuario:senha@host:5432/banco" >&2
-  echo "Com o docker-compose deste repositório ela é montada sozinha a partir de" >&2
-  echo "POSTGRES_PASSWORD — defina essa no ambiente do deploy (no Coolify:" >&2
-  echo "Environment Variables)." >&2
+  echo "Defina DATABASE_URL (postgres://usuario:senha@host:5432/banco) ou então" >&2
+  echo "PGHOST, PGUSER, PGPASSWORD e PGDATABASE. Com o docker-compose deste" >&2
+  echo "repositório elas são montadas a partir de SERVICE_PASSWORD_POSTGRES, que o" >&2
+  echo "Coolify gera sozinho no primeiro deploy — se aparece este erro, essa" >&2
+  echo "variável está vazia (fora do Coolify, defina-a no .env)." >&2
   exit 1
 fi
 

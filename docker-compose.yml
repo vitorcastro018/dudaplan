@@ -17,12 +17,20 @@ services:
       NODE_ENV: production
       PORT: 6555
       APP_TIMEZONE: ${APP_TIMEZONE:-America/Sao_Paulo}
-      # Montada a partir da senha, que é a única coisa que muda entre ambientes.
-      # `:?` faz o `docker compose` parar na hora dizendo qual variável falta,
-      # em vez de subir um container que morre depois. Use uma senha só com
-      # letras e números (openssl rand -hex 24): ela entra numa URL, e um `@`
-      # ou `/` no meio a quebraria.
-      DATABASE_URL: postgres://dudaplan:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD (gere com openssl rand -hex 24)}@db:5432/dudaplan
+      # Conexão com o Postgres por variáveis PG*, que o driver lê sozinho. Não
+      # uso uma URL de propósito: a senha entraria nela, e um caractere como `@`,
+      # `/` ou `#` numa senha gerada a quebraria. Aqui qualquer senha serve.
+      #
+      # `SERVICE_PASSWORD_POSTGRES` é uma variável "mágica" do Coolify: no
+      # primeiro deploy ele gera uma senha aleatória, guarda em Environment
+      # Variables e reaproveita nos deploys seguintes. O mesmo nome nos dois
+      # serviços (app e db) devolve o mesmo valor. Fora do Coolify, defina-a no
+      # .env.
+      PGHOST: db
+      PGPORT: 5432
+      PGUSER: dudaplan
+      PGPASSWORD: ${SERVICE_PASSWORD_POSTGRES}
+      PGDATABASE: dudaplan
       # Domínios extras de onde as Server Actions podem ser chamadas. Só é
       # necessário se o proxy não repassar X-Forwarded-Host — ver next.config.ts.
       APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS:-}
@@ -66,7 +74,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: dudaplan
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD (gere com openssl rand -hex 24)}
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_POSTGRES}
       POSTGRES_DB: dudaplan
     volumes:
       - pgdata:/var/lib/postgresql/data

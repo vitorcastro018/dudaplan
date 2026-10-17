@@ -17,16 +17,18 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 
+// A conexão vem de DATABASE_URL ou, na falta dela, das variáveis PG* que o
+// driver lê sozinho (é o que o docker-compose define).
 const url = process.env.DATABASE_URL;
-if (!url) {
-  console.error("DATABASE_URL não definida.");
+if (!url && !process.env.PGHOST) {
+  console.error("Defina DATABASE_URL ou PGHOST/PGUSER/PGPASSWORD/PGDATABASE.");
   process.exit(1);
 }
 
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "migrations");
 const LOCK_ID = 727_001;
 
-const client = new pg.Client({ connectionString: url });
+const client = new pg.Client(url ? { connectionString: url } : {});
 await client.connect();
 
 try {

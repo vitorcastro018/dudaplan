@@ -23,6 +23,7 @@ const globalForPool = globalThis as unknown as { __dudaplanPool?: pg.Pool };
 export const pool =
   globalForPool.__dudaplanPool ??
   new pg.Pool({
+    // Sem DATABASE_URL, o driver lê PGHOST/PGUSER/PGPASSWORD/PGDATABASE.
     connectionString: env.DATABASE_URL,
     max: 10,
     idleTimeoutMillis: 30_000,

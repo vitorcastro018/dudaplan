@@ -2,9 +2,10 @@ import { z } from "zod";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
 
 const envSchema = z.object({
-  // Conexão com o Postgres. Em produção aponta para o serviço `db` do
-  // docker-compose (postgres://usuario:senha@db:5432/dudaplan).
-  DATABASE_URL: z.string().url(),
+  // Conexão com o Postgres. Opcional: sem ela o driver usa as variáveis PG*
+  // (PGHOST, PGUSER, PGPASSWORD, PGDATABASE), que é o que o docker-compose
+  // define. Em desenvolvimento local, uma URL é mais prático.
+  DATABASE_URL: z.string().url().optional(),
   APP_TIMEZONE: z.string().default("America/Sao_Paulo"),
   // Se definida, a tela de cadastro passa a exigir este código. Deixe vazia
   // para cadastro aberto. Ver o comentário em src/app/login/actions.ts.
@@ -19,9 +20,7 @@ const envSchema = z.object({
 // fases a validação é pra valer.
 const isBuildPhase = process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
 
-const buildPlaceholders = {
-  DATABASE_URL: "postgres://placeholder:placeholder@localhost:5432/placeholder",
-};
+const buildPlaceholders = {};
 
 // Uma plataforma de deploy entrega string vazia para uma variável registrada mas
 // sem valor, em vez de deixá-la ausente — o Coolify faz isso tanto em build arg
