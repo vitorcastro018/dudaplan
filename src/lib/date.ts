@@ -153,6 +153,15 @@ export function formatDateTimeLabel(iso: string): string {
   }).format(new Date(iso));
 }
 
+/** Só a hora ("14:30"), no fuso do app. Para a linha do tempo de "Hoje". */
+export function formatTimeLabel(iso: string): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(iso));
+}
+
 export function isValidDateKey(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }

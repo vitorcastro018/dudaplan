@@ -1,6 +1,11 @@
 import { query, queryOne } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { formatDateTimeLabel, utcIsoToLocalDateTimeInput } from "@/lib/date";
+import {
+  dayRangeUtc,
+  formatDateTimeLabel,
+  formatTimeLabel,
+  utcIsoToLocalDateTimeInput,
+} from "@/lib/date";
 import type { MeetingRow, MeetingParticipantRow, RecordingRow } from "@/lib/types";
 
 const MEETING_FIELDS =
@@ -33,6 +38,8 @@ export interface MeetingSummary extends MeetingListItem {
    * está olhando — que é justamente o que este app não quer.
    */
   scheduledLabel: string | null;
+  /** Só a hora ("14:30"), no mesmo fuso, para a agenda de "Hoje". */
+  scheduledTime: string | null;
 }
 
 export interface MeetingDetail extends MeetingListItem {
@@ -74,6 +81,26 @@ export async function listProjectMeetings(projectId: string): Promise<MeetingSum
 }
 
 /**
+ * As reuniões marcadas para o dia, da mais cedo para a mais tarde — a faixa de
+ * agenda da tela "Hoje". O intervalo vem de `dayRangeUtc` porque `scheduled_at`
+ * é `timestamptz`.
+ */
+export async function listMeetingsOnDay(dateKey: string): Promise<MeetingSummary[]> {
+  const userId = await requireUser();
+  const { start, end } = dayRangeUtc(dateKey);
+
+  const meetings = await query<MeetingListItem>(
+    `select ${MEETING_FIELDS} from meetings
+      where user_id = $1 and archived_at is null
+        and scheduled_at >= $2 and scheduled_at < $3
+      order by scheduled_at`,
+    [userId, start, end],
+  );
+
+  return enrichMeetings(userId, meetings);
+}
+
+/**
  * Cruza uma lista de reuniões com participantes, gravações e nome do projeto.
  * Consultas separadas e cruzamento por `Map`: simples, e barato numa lista
  * dessa ordem.
@@ -108,6 +135,7 @@ async function enrichMeetings(userId: string, rows: MeetingListItem[]): Promise<
     participantCount: countByMeeting.get(meeting.id) ?? 0,
     hasAudio: withAudio.has(meeting.id),
     scheduledLabel: meeting.scheduled_at ? formatDateTimeLabel(meeting.scheduled_at) : null,
+    scheduledTime: meeting.scheduled_at ? formatTimeLabel(meeting.scheduled_at) : null,
   }));
 }
 
