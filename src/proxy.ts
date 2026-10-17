@@ -11,7 +11,7 @@ export const config = {
   // truncamento à custa de segurar 200 MB na memória, o que também anularia a
   // gravação em streaming de `saveMeetingAudio`. A rota faz a própria checagem
   // de sessão.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|mark.svg|login|api/health|api/meetings).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|mark.svg|login|api/health|api/meetings).*)"],
 };
 
 // Location relativo resolveria o problema do domínio sozinho, mas a camada de
