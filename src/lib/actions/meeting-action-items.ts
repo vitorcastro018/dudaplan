@@ -3,13 +3,12 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { query, queryOne, transaction, updateOwned } from "@/lib/db";
+import { transaction, updateOwned } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { errorMessage } from "@/lib/utils";
 import { todayKey } from "@/lib/date";
-import { resolveAudioPath } from "@/lib/storage/audio";
-import { getMeetingRecording } from "@/lib/data/meetings";
-import { AiError, extractActionItems, transcribeAudio } from "@/lib/ai/openai";
+import { AiError, extractActionItems } from "@/lib/ai/openai";
+import { getMeetingAiInput } from "@/lib/ai/meeting-input";
 import { parseActionItems, parseAiActionItems, type ActionItem } from "@/lib/ai/action-items";
 import type { ActionResult } from "@/lib/actions/tasks";
 import type { MeetingRow } from "@/lib/types";
@@ -32,48 +31,21 @@ function revalidate() {
 export async function generateActionItems(meetingId: string): Promise<ActionResult> {
   const userId = await requireUser();
 
-  const meeting = await queryOne<
-    Pick<MeetingRow, "id" | "title" | "notes" | "transcript" | "action_items">
-  >(
-    "select id, title, notes, transcript, action_items from meetings where id = $1 and user_id = $2",
-    [meetingId, userId],
-  );
-  if (!meeting) return { ok: false, error: "Reunião não encontrada." };
-
   try {
-    let transcript = meeting.transcript;
+    const input = await getMeetingAiInput(
+      meetingId,
+      userId,
+      "Envie ou grave um áudio antes de gerar as tarefas.",
+    );
+    if (!input.ok) return input;
 
-    if (!transcript) {
-      const recording = await getMeetingRecording(meetingId);
-      if (!recording) {
-        return { ok: false, error: "Envie ou grave um áudio antes de gerar as tarefas." };
-      }
-      transcript = await transcribeAudio(
-        resolveAudioPath(recording.storage_path),
-        recording.mime_type,
-        recording.size_bytes ?? 0,
-      );
-      if (!transcript) {
-        return { ok: false, error: "Não foi possível entender fala nesse áudio." };
-      }
-      await updateOwned("meetings", meetingId, userId, { transcript });
-    }
-
-    const participants = (
-      await query<{ name: string }>("select name from meeting_participants where meeting_id = $1", [
-        meetingId,
-      ])
-    )
-      .map((row) => row.name)
-      .filter(Boolean);
-
-    const created = parseActionItems(meeting.action_items).filter((item) => item.taskId);
+    const created = parseActionItems(input.meeting.action_items).filter((item) => item.taskId);
 
     const raw = await extractActionItems({
-      title: meeting.title,
-      participants,
-      notes: meeting.notes,
-      transcript,
+      title: input.meeting.title,
+      participants: input.participants,
+      notes: input.meeting.notes,
+      transcript: input.transcript,
       today: todayKey(),
       alreadyCreated: created.map((item) => item.title),
     });

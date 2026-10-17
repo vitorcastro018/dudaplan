@@ -253,3 +253,73 @@ export async function extractActionItems(input: {
     throw new AiError("A resposta da OpenAI veio num formato inválido. Tente de novo.");
   }
 }
+
+const DIAGNOSIS_PROMPT = `Você é um consultor de melhoria de processos fazendo o diagnóstico de uma reunião a partir da transcrição. Identifique os problemas do processo de trabalho que apareceram na conversa. Escreva em português do Brasil. Aponte só o que a conversa sustenta: não invente problemas, números nem causas.
+
+Responda SOMENTE com um JSON neste formato:
+{
+  "hasFindings": boolean,
+  "reason": string | null,
+  "findings": [
+    {
+      "category": "gargalo" | "retrabalho" | "manual" | "risco",
+      "severity": "baixa" | "media" | "alta",
+      "title": string,
+      "description": string,
+      "quote": string | null
+    }
+  ]
+}
+
+Categorias: "gargalo" é onde o trabalho trava ou espera; "retrabalho" é o que se refaz ou corrige; "manual" é o que depende de trabalho manual repetitivo (digitar, copiar, conferir à mão); "risco" é o que pode dar errado ou depende de uma pessoa só.
+
+Regras:
+- "title": o problema em até 10 palavras. "description": uma ou duas frases explicando o efeito dele no trabalho.
+- "quote": um trecho COPIADO LITERALMENTE da transcrição, sem mudar nenhuma palavra, com no máximo 200 caracteres, que mostre o problema. Se não houver um trecho literal que sustente o problema, use null. Nunca parafraseie.
+- "severity": "alta" para o que mais custa tempo, dinheiro ou clientes; "baixa" para incômodos pequenos.
+- No máximo 8 problemas, do mais grave para o menos grave.
+- Se a conversa não mostra problema de processo algum, responda hasFindings=false, explique em "reason" e devolva findings=[].`;
+
+export async function diagnoseProcess(input: {
+  title: string;
+  participants: string[];
+  notes: string | null;
+  transcript: string;
+}): Promise<unknown> {
+  const key = apiKey();
+
+  const context = [
+    `Título da reunião: ${input.title}`,
+    input.participants.length > 0 ? `Participantes: ${input.participants.join(", ")}` : null,
+    input.notes ? `Anotações feitas pelo usuário:\n${input.notes}` : null,
+    `Transcrição:\n${input.transcript}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const response = await fetch(`${API}/chat/completions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: env.OPENAI_SUMMARY_MODEL,
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: DIAGNOSIS_PROMPT },
+        { role: "user", content: context },
+      ],
+    }),
+  });
+  if (!response.ok) throw await failure(response);
+
+  const body = await response.json();
+  const text = body?.choices?.[0]?.message?.content;
+  if (typeof text !== "string") {
+    throw new AiError("A OpenAI não devolveu o diagnóstico. Tente de novo.");
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new AiError("A resposta da OpenAI veio num formato inválido. Tente de novo.");
+  }
+}
