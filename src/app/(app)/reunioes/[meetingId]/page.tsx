@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import { UnderlineTabs } from "@/components/ui/tabs";
 import { getMeeting } from "@/lib/data/meetings";
@@ -7,6 +8,7 @@ import { MeetingActions } from "@/features/meetings/meeting-actions";
 import { MeetingAudio } from "@/features/meetings/meeting-audio";
 import { MeetingSummary } from "@/features/meetings/meeting-summary";
 import { MeetingActionItems } from "@/features/meetings/meeting-action-items";
+import { MeetingDiagnosis } from "@/features/meetings/meeting-diagnosis";
 import { MeetingImprovement } from "@/features/meetings/meeting-improvement";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +38,15 @@ export default async function MeetingPage({
   // `?projeto=` em /tarefas.
   const audioTab = aba === "audio";
 
+  // Na aba Detalhes só aparecem as seções de IA que já foram geradas, com uma
+  // divisória entre elas (e nenhuma sobrando na ponta).
+  const sections = [
+    meeting.summary && { key: "summary", node: <MeetingSummary meeting={meeting} /> },
+    meeting.actionItemsLabel && { key: "actions", node: <MeetingActionItems meeting={meeting} /> },
+    meeting.diagnosis && { key: "diagnosis", node: <MeetingDiagnosis meeting={meeting} /> },
+    meeting.improvement && { key: "improvement", node: <MeetingImprovement meeting={meeting} /> },
+  ].filter((section) => !!section);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
@@ -61,18 +72,19 @@ export default async function MeetingPage({
           <hr className="border-line my-4" />
           <MeetingActionItems meeting={meeting} />
           <hr className="border-line my-4" />
+          <MeetingDiagnosis meeting={meeting} />
+          <hr className="border-line my-4" />
           <MeetingImprovement meeting={meeting} />
         </>
       ) : (
         <>
           <MeetingDetail meeting={meeting} projectName={project?.name ?? null} />
-          {meeting.summary && <MeetingSummary meeting={meeting} />}
-          {meeting.summary && meeting.actionItemsLabel && <hr className="border-line my-4" />}
-          {meeting.actionItemsLabel && <MeetingActionItems meeting={meeting} />}
-          {(meeting.summary || meeting.actionItemsLabel) && meeting.improvement && (
-            <hr className="border-line my-4" />
-          )}
-          {meeting.improvement && <MeetingImprovement meeting={meeting} />}
+          {sections.map((section, i) => (
+            <Fragment key={section.key}>
+              {i > 0 && <hr className="border-line my-4" />}
+              {section.node}
+            </Fragment>
+          ))}
         </>
       )}
     </div>

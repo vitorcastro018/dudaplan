@@ -7,6 +7,7 @@ import {
   utcIsoToLocalDateTimeInput,
 } from "@/lib/date";
 import { parseActionItems, type ActionItem } from "@/lib/ai/action-items";
+import { parseDiagnosis, type Diagnosis } from "@/lib/ai/diagnosis";
 import { parseImprovement, type ProcessImprovement } from "@/lib/ai/improvement";
 import type { MeetingRow, MeetingParticipantRow, RecordingRow } from "@/lib/types";
 
@@ -53,6 +54,8 @@ export interface MeetingDetail extends MeetingListItem {
   improvementLabel: string | null;
   actionItems: ActionItem[];
   actionItemsLabel: string | null;
+  diagnosis: Diagnosis | null;
+  diagnosisLabel: string | null;
   participants: MeetingParticipant[];
   recording: RecordingRow | null;
   scheduledLabel: string | null;
@@ -193,9 +196,11 @@ export async function getMeeting(meetingId: string): Promise<MeetingDetail | nul
       improved_at: string | null;
       action_items: unknown;
       action_items_at: string | null;
+      diagnosis: unknown;
+      diagnosed_at: string | null;
     }>(
       `select transcript, summary, summarized_at, improvement, improved_at,
-              action_items, action_items_at
+              action_items, action_items_at, diagnosis, diagnosed_at
          from meetings where id = $1`,
       [meetingId],
     ),
@@ -210,6 +215,8 @@ export async function getMeeting(meetingId: string): Promise<MeetingDetail | nul
     improvementLabel: ai?.improved_at ? formatDateTimeLabel(ai.improved_at) : null,
     actionItems: parseActionItems(ai?.action_items),
     actionItemsLabel: ai?.action_items_at ? formatDateTimeLabel(ai.action_items_at) : null,
+    diagnosis: ai?.diagnosis ? parseDiagnosis(ai.diagnosis) : null,
+    diagnosisLabel: ai?.diagnosed_at ? formatDateTimeLabel(ai.diagnosed_at) : null,
     participants,
     recording,
     scheduledLabel: meeting.scheduled_at ? formatDateTimeLabel(meeting.scheduled_at) : null,

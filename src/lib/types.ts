@@ -111,6 +111,9 @@ export type MeetingRow = {
   /** Próximos passos extraídos pela IA (JSON), para virarem tarefas. */
   action_items: unknown;
   action_items_at: string | null;
+  /** Diagnóstico de gargalos (JSON), gerado pela IA. */
+  diagnosis: unknown;
+  diagnosed_at: string | null;
   archived_at: string | null;
   created_at: string;
   updated_at: string;
