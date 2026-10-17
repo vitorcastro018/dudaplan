@@ -57,12 +57,14 @@ export default async function MeetingPage({
         <>
           <MeetingAudio meetingId={meeting.id} recording={meeting.recording} />
           <MeetingSummary meeting={meeting} />
+          <hr className="border-line my-4" />
           <MeetingImprovement meeting={meeting} />
         </>
       ) : (
         <>
           <MeetingDetail meeting={meeting} projectName={project?.name ?? null} />
           {meeting.summary && <MeetingSummary meeting={meeting} />}
+          {meeting.summary && meeting.improvement && <hr className="border-line my-4" />}
           {meeting.improvement && <MeetingImprovement meeting={meeting} />}
         </>
       )}
