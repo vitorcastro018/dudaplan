@@ -156,7 +156,7 @@ function RoutineRow({
               rel="noopener noreferrer"
               title={routine.link}
               aria-label={`Abrir link de ${routine.name}`}
-              className="text-accent hover:text-accent-hover shrink-0"
+              className="text-accent-ink shrink-0"
             >
               <ExternalLink className="h-3.5 w-3.5" />
             </a>

@@ -1,97 +1,43 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* Tema único: roxo escuro. Os nomes dos tokens (pine, ochre, plum) foram
+   mantidos, mas agora representam verde (sucesso), âmbar e rosa. */
 :root {
-  --paper: #f7f4ee;
-  --paper-sunk: #efebe2;
-  --surface: #ffffff;
-  --line: #e3ded3;
-  --line-strong: #cfc8ba;
-  --ink: #14140f;
-  --ink-2: #4a463d;
-  --ink-muted: #6e6a5f;
+  --paper: #120e1f;
+  --paper-sunk: #0d0a17;
+  --surface: #1b1530;
+  --line: #2e2550;
+  --line-strong: #43376e;
+  --ink: #f1eefb;
+  --ink-2: #bdb5db;
+  --ink-muted: #8a81b0;
 
-  --accent: #b3441e;
-  --accent-hover: #9a3a18;
-  --accent-soft: #f3e3da;
+  --accent: #8257f5;
+  --accent-hover: #6f45e8;
+  --accent-soft: #2b1f57;
+  --accent-ink: #b79cff;
 
-  --pine: #1f4d3d;
-  --pine-soft: #e3ede8;
+  --coral: #ff7a59;
+  --coral-soft: #3d2030;
 
-  --ochre: #c08a2e;
-  --ochre-soft: #f6ebd6;
+  --pine: #5fd8a4;
+  --pine-soft: #12372b;
 
-  --plum: #6b3e63;
-  --plum-soft: #ece2ea;
+  --ochre: #f2c14e;
+  --ochre-soft: #3a2e12;
 
-  --danger: #98342b;
-  --danger-soft: #f5e1de;
+  --plum: #f59ad6;
+  --plum-soft: #3a1f38;
 
-  --radius-sm: 6px;
-  --radius: 10px;
-  --radius-lg: 14px;
+  --danger: #ff8585;
+  --danger-soft: #3d1d28;
 
-  --shadow-pop: 0 12px 32px -12px rgb(20 20 15 / 0.18);
-}
+  --radius-sm: 10px;
+  --radius: 12px;
+  --radius-lg: 18px;
 
-:root[data-theme="dark"] {
-  --paper: #14130f;
-  --paper-sunk: #1a1913;
-  --surface: #1c1b16;
-  --line: #2e2c25;
-  --line-strong: #3c392f;
-  --ink: #f2eee4;
-  --ink-2: #cac5b6;
-  --ink-muted: #948e7d;
-
-  --accent: #e4653a;
-  --accent-hover: #ef7a51;
-  --accent-soft: #3a2019;
-
-  --pine: #74a995;
-  --pine-soft: #1c2b25;
-
-  --ochre: #d9a24a;
-  --ochre-soft: #33290f;
-
-  --plum: #b98bae;
-  --plum-soft: #2a2028;
-
-  --danger: #d97369;
-  --danger-soft: #35201d;
-
-  --shadow-pop: 0 12px 32px -12px rgb(0 0 0 / 0.45);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #14130f;
-    --paper-sunk: #1a1913;
-    --surface: #1c1b16;
-    --line: #2e2c25;
-    --line-strong: #3c392f;
-    --ink: #f2eee4;
-    --ink-2: #cac5b6;
-    --ink-muted: #948e7d;
-
-    --accent: #e4653a;
-    --accent-hover: #ef7a51;
-    --accent-soft: #3a2019;
-
-    --pine: #74a995;
-    --pine-soft: #1c2b25;
-
-    --ochre: #d9a24a;
-    --ochre-soft: #33290f;
-
-    --plum: #b98bae;
-    --plum-soft: #2a2028;
-
-    --danger: #d97369;
-    --danger-soft: #35201d;
-
-    --shadow-pop: 0 12px 32px -12px rgb(0 0 0 / 0.45);
-  }
+  --shadow-pop: 0 16px 40px -12px rgb(0 0 0 / 0.6);
 }
 
 @theme inline {
@@ -107,6 +53,10 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+
+  --color-coral: var(--coral);
+  --color-coral-soft: var(--coral-soft);
 
   --color-pine: var(--pine);
   --color-pine-soft: var(--pine-soft);
@@ -124,8 +74,8 @@
   --radius-md: var(--radius);
   --radius-lg: var(--radius-lg);
 
-  --font-display: var(--font-fraunces);
-  --font-sans: var(--font-archivo);
+  --font-display: var(--font-bricolage);
+  --font-sans: var(--font-figtree);
   --font-mono: var(--font-jetbrains-mono);
 }
 
@@ -135,10 +85,6 @@
   }
 
   html {
-    color-scheme: light;
-  }
-
-  html[data-theme="dark"] {
     color-scheme: dark;
   }
 
@@ -151,11 +97,11 @@
 
   ::selection {
     background: var(--accent-soft);
-    color: var(--accent-hover);
+    color: var(--accent-ink);
   }
 
   :focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--accent-ink);
     outline-offset: 2px;
   }
 }

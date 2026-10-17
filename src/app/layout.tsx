@@ -1,18 +1,16 @@
-import type { Metadata } from "next";
-import { Fraunces, Archivo, JetBrains_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Bricolage_Grotesque, Figtree, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-bricolage",
   subsets: ["latin"],
-  weight: "variable",
-  style: ["normal", "italic"],
-  axes: ["opsz", "SOFT", "WONK"],
+  weight: ["500", "700", "800"],
 });
 
-const archivo = Archivo({
-  variable: "--font-archivo",
+const figtree = Figtree({
+  variable: "--font-figtree",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
@@ -28,6 +26,10 @@ export const metadata: Metadata = {
   description: "Controle de projetos, tarefas e reuniões com IA.",
 };
 
+export const viewport: Viewport = {
+  themeColor: "#120e1f",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -36,7 +38,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={`${fraunces.variable} ${archivo.variable} ${jetbrainsMono.variable} h-full`}
+      className={`${bricolage.variable} ${figtree.variable} ${jetbrainsMono.variable} h-full`}
     >
       <body className="bg-paper text-ink min-h-full antialiased">
         {children}

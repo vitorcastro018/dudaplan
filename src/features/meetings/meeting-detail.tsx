@@ -24,7 +24,10 @@ export function MeetingDetail({
         <p className="text-ink-2 flex items-center gap-2 text-sm">
           <FolderKanban className="text-ink-muted h-4 w-4 shrink-0" />
           {meeting.project_id && projectName ? (
-            <Link href={`/projetos/${meeting.project_id}`} className="text-accent hover:underline">
+            <Link
+              href={`/projetos/${meeting.project_id}`}
+              className="text-accent-ink hover:underline"
+            >
               {projectName}
             </Link>
           ) : (

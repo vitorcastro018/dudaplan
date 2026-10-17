@@ -13,6 +13,15 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logout } from "@/app/login/actions";
+import { Logo } from "@/components/brand/logo";
+
+const PROJECT_DOTS = [
+  "var(--coral)",
+  "var(--pine)",
+  "var(--ochre)",
+  "var(--plum)",
+  "var(--accent-ink)",
+];
 
 export interface SidebarProject {
   id: string;
@@ -29,11 +38,8 @@ export function Sidebar({ projects }: { projects: SidebarProject[] }) {
 
   return (
     <aside className="border-line bg-paper-sunk sticky top-0 flex h-screen w-[248px] shrink-0 flex-col border-r">
-      <div className="flex items-center gap-2 px-5 py-5">
-        <span className="bg-accent flex h-6 w-6 items-center justify-center rounded-[6px]">
-          <span className="h-2.5 w-2.5 rounded-[2px] bg-white" />
-        </span>
-        <span className="font-display text-ink text-lg font-semibold tracking-tight">DudaPlan</span>
+      <div className="px-5 py-5">
+        <Logo markClassName="h-8 w-8" />
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3">
@@ -64,16 +70,20 @@ export function Sidebar({ projects }: { projects: SidebarProject[] }) {
 
         {projects.length > 0 && (
           <div className="my-2 flex flex-col gap-0.5 pl-2">
-            {projects.map((project) => (
+            {projects.map((project, index) => (
               <Link
                 key={project.id}
                 href={`/projetos/${project.id}`}
                 className={cn(
-                  "text-ink-muted hover:bg-surface hover:text-ink truncate rounded-[var(--radius-sm)] px-3 py-1.5 text-sm",
+                  "text-ink-muted hover:bg-surface hover:text-ink flex items-center gap-2.5 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm",
                   pathname === `/projetos/${project.id}` && "bg-surface text-ink",
                 )}
               >
-                {project.name}
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ background: PROJECT_DOTS[index % PROJECT_DOTS.length] }}
+                />
+                <span className="truncate">{project.name}</span>
               </Link>
             ))}
           </div>
@@ -125,9 +135,8 @@ function NavLink({
     <Link
       href={href}
       className={cn(
-        "text-ink-2 hover:bg-surface hover:text-ink flex items-center gap-2.5 rounded-[var(--radius-sm)] px-3 py-2 text-sm font-medium transition-colors",
-        active &&
-          "bg-surface text-ink before:bg-accent relative before:absolute before:top-1/2 before:-left-3 before:h-4 before:w-[3px] before:-translate-y-1/2 before:rounded-full",
+        "text-ink-2 hover:bg-surface hover:text-ink flex items-center gap-2.5 rounded-[var(--radius-sm)] px-3 py-2.5 text-sm font-medium transition-colors",
+        active && "bg-accent hover:bg-accent text-white hover:text-white",
       )}
     >
       <Icon className="h-4 w-4" />
